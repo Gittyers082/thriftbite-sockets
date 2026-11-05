@@ -71,6 +71,34 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
                      @Param("now") Instant now,
                      @Param("available") ItemStatus available);
 
+    /** Puts stock back after a cancelled reservation. */
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update Item i
+               set i.quantity = i.quantity + :quantity,
+                   i.version  = i.version + 1,
+                   i.updatedAt = :now
+             where i.id = :itemId
+            """)
+    int restock(@Param("itemId") UUID itemId,
+                @Param("quantity") int quantity,
+                @Param("now") Instant now);
+
+    /** A sold-out item that got stock back is for sale again. */
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update Item i
+               set i.status = :available
+             where i.id = :itemId
+               and i.status = :soldOut
+               and i.quantity > 0
+            """)
+    int markAvailableIfRestocked(@Param("itemId") UUID itemId,
+                                 @Param("available") ItemStatus available,
+                                 @Param("soldOut") ItemStatus soldOut);
+
     /** Marks an item SOLD_OUT once its stock reaches zero. */
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)

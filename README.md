@@ -58,6 +58,13 @@ cd backend
 | POST | `/api/owner/items` | owner | Create a listing |
 | PUT | `/api/owner/items/{id}` | owner | Edit a listing (send the `version` you loaded) |
 | DELETE | `/api/owner/items/{id}` | owner | Remove a listing |
+| GET | `/api/cart` | consumer | Your cart, with a warning on lines that sold out |
+| PUT | `/api/cart/items/{itemId}` | consumer | Add an item or change its quantity (`0` removes it) |
+| POST | `/api/checkout` | consumer | Reserve everything in the cart, all or nothing: one reservation and claim code per store |
+| GET | `/api/reservations` | consumer | Your reservations and claim codes |
+| POST | `/api/reservations/{id}/cancel` | consumer | Cancel before pickup (stock goes back on sale) |
+| GET | `/api/owner/reservations` | owner | Pickups waiting at your store |
+| POST | `/api/owner/reservations/{id}/complete` | owner | Hand over the food after checking the buyer's claim code |
 | GET | `/api/admin/owners/pending` | admin | Owners waiting for approval |
 | POST | `/api/admin/users/{id}/approve` | admin | Approve an owner |
 
