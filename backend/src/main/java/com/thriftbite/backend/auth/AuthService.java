@@ -1,0 +1,84 @@
+package com.thriftbite.backend.auth;
+
+import com.thriftbite.backend.auth.dto.LoginRequest;
+import com.thriftbite.backend.auth.dto.LoginResponse;
+import com.thriftbite.backend.auth.dto.RegisterRequest;
+import com.thriftbite.backend.auth.dto.UserResponse;
+import com.thriftbite.backend.common.ApiExceptions.AccountNotApprovedException;
+import com.thriftbite.backend.common.ApiExceptions.ConflictException;
+import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
+import com.thriftbite.backend.user.Role;
+import com.thriftbite.backend.user.User;
+import com.thriftbite.backend.user.UserRepository;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class AuthService {
+
+    private final UserRepository users;
+    private final PasswordEncoder passwordEncoder;
+    private final TokenService tokens;
+
+    /**
+     * Compared against when a username doesn't exist, so a failed login takes
+     * about as long either way and response timing doesn't reveal which usernames exist.
+     */
+    private final String dummyHash;
+
+    public AuthService(UserRepository users, PasswordEncoder passwordEncoder, TokenService tokens) {
+        this.users = users;
+        this.passwordEncoder = passwordEncoder;
+        this.tokens = tokens;
+        this.dummyHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
+    }
+
+    @Transactional
+    public UserResponse register(RegisterRequest request) {
+        String username = normalize(request.username());
+        if (users.existsByUsername(username)) {
+            throw new ConflictException("Username is already taken");
+        }
+        Role role = switch (request.accountType()) {
+            case OWNER -> Role.OWNER;
+            case CONSUMER -> Role.CONSUMER;
+        };
+        User user = users.save(new User(username, passwordEncoder.encode(request.password()), role));
+        return UserResponse.from(user);
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request) {
+        Optional<User> found = users.findByUsername(normalize(request.username()));
+        String hash = found.map(User::getPasswordHash).orElse(dummyHash);
+        boolean passwordMatches = passwordEncoder.matches(request.password(), hash);
+
+        if (found.isEmpty() || !passwordMatches) {
+            throw new BadCredentialsException("Invalid username or password");
+        }
+        User user = found.get();
+        if (!user.isApproved()) {
+            throw new AccountNotApprovedException();
+        }
+        TokenService.IssuedToken token = tokens.issue(user);
+        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user));
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponse currentUser(UUID userId) {
+        return users.findById(userId)
+                .map(UserResponse::from)
+                .orElseThrow(() -> new NotFoundException("User no longer exists"));
+    }
+
+    /** Usernames are case-insensitive: "Steven" and "steven" are the same account. */
+    static String normalize(String username) {
+        return username.trim().toLowerCase(Locale.ROOT);
+    }
+}
