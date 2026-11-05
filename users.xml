@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="25.0.2" class="java.beans.XMLDecoder">
+ <object class="java.util.ArrayList">
+  <void method="add">
+   <object class="com.thriftbite.common.UserDTO">
+    <void property="approved">
+     <boolean>true</boolean>
+    </void>
+    <void property="passwordHash">
+     <string>demo1234</string>
+    </void>
+    <void property="role">
+     <object class="java.lang.Enum" method="valueOf">
+      <class>com.thriftbite.common.Role</class>
+      <string>ADMIN</string>
+     </object>
+    </void>
+    <void property="username">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.UserDTO">
+    <void property="approved">
+     <boolean>true</boolean>
+    </void>
+    <void property="passwordHash">
+     <string>demo1234</string>
+    </void>
+    <void property="role">
+     <object class="java.lang.Enum" id="Role0" method="valueOf">
+      <class>com.thriftbite.common.Role</class>
+      <string>OWNER</string>
+     </object>
+    </void>
+    <void property="username">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.UserDTO">
+    <void property="approved">
+     <boolean>true</boolean>
+    </void>
+    <void property="passwordHash">
+     <string>demo1234</string>
+    </void>
+    <void property="role">
+     <object class="java.lang.Enum" id="Role1" method="valueOf">
+      <class>com.thriftbite.common.Role</class>
+      <string>CONSUMER</string>
+     </object>
+    </void>
+    <void property="username">
+     <string>zilong</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.UserDTO" id="UserDTO0">
+    <void property="approved">
+     <boolean>true</boolean>
+    </void>
+    <void property="orders">
+     <void method="add">
+      <object class="com.thriftbite.common.ItemDTO">
+       <void property="buyerName">
+        <string>speed</string>
+       </void>
+       <void property="expiryDate">
+        <string>2030-03-20 00:00</string>
+       </void>
+       <void property="id">
+        <string>d6f81427-731f-4bfc-8370-5473809a6654</string>
+       </void>
+       <void property="name">
+        <string>Raisin Cinnamon Roll</string>
+       </void>
+       <void property="ownerId">
+        <string>johnpork</string>
+       </void>
+       <void property="pickupLocation">
+        <string>Over Here</string>
+       </void>
+       <void property="price">
+        <double>500.0</double>
+       </void>
+       <void property="quantity">
+        <int>3</int>
+       </void>
+       <void property="status">
+        <object class="java.lang.Enum" id="ItemStatus0" method="valueOf">
+         <class>com.thriftbite.common.ItemStatus</class>
+         <string>PAID</string>
+        </object>
+       </void>
+      </object>
+     </void>
+     <void method="add">
+      <object class="com.thriftbite.common.ItemDTO">
+       <void property="buyerName">
+        <string>speed</string>
+       </void>
+       <void property="expiryDate">
+        <string>2026-02-28 23:00</string>
+       </void>
+       <void property="id">
+        <string>77e77fa9-73e7-45e0-94af-58fd7405bbf1</string>
+       </void>
+       <void property="name">
+        <string>Cold Hotpockets</string>
+       </void>
+       <void property="ownerId">
+        <string>johnpork</string>
+       </void>
+       <void property="pickupLocation">
+        <string>there</string>
+       </void>
+       <void property="price">
+        <double>50.0</double>
+       </void>
+       <void property="quantity">
+        <int>12</int>
+       </void>
+       <void property="status">
+        <object idref="ItemStatus0"/>
+       </void>
+      </object>
+     </void>
+    </void>
+    <void property="passwordHash">
+     <string>demo1234</string>
+    </void>
+    <void property="role">
+     <object idref="Role1"/>
+    </void>
+    <void property="username">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.UserDTO">
+    <void property="approved">
+     <boolean>true</boolean>
+    </void>
+    <void property="passwordHash">
+     <string>demo1234</string>
+    </void>
+    <void property="role">
+     <object idref="Role0"/>
+    </void>
+    <void property="username">
+     <string>legends</string>
+    </void>
+   </object>
+  </void>
+ </object>
+</java>

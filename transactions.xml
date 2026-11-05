@@ -1,0 +1,1381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="21.0.6" class="java.beans.XMLDecoder">
+ <object class="java.util.ArrayList">
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:47:23</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:48:25</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REGISTER</string>
+    </void>
+    <void property="details">
+     <string>Created new account</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:49:10</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:51:20</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:51:27</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:59:13</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>APPROVE_USER</string>
+    </void>
+    <void property="details">
+     <string>Approved account: johnpork</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 11:59:42</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:00:06</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REGISTER</string>
+    </void>
+    <void property="details">
+     <string>Created new account</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:00:26</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>APPROVE_USER</string>
+    </void>
+    <void property="details">
+     <string>Approved account: lebron</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:00:35</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:00:46</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:00:54</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:18:33</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:22:07</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:24:19</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:24:44</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:25:46</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:28:50</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:30:09</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:32:43</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:32:47</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:33:11</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:33:18</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:33:31</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CREATE_ITEM</string>
+    </void>
+    <void property="details">
+     <string>Item Name: Raisin Cinnamon Roll, Price: 500.0</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:34:54</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CREATE_ITEM</string>
+    </void>
+    <void property="details">
+     <string>Item Name: Cold Hotpockets, Price: 50.0</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:36:26</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REGISTER</string>
+    </void>
+    <void property="details">
+     <string>Created new account</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:36:59</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:37:11</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>APPROVE_USER</string>
+    </void>
+    <void property="details">
+     <string>Approved account: speed</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:37:15</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:37:33</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>ADD_TO_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: fb10fcb2-28fe-4012-ab0a-8899bc93a5fa, Qty: 3</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:37:55</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CHECKOUT_CART</string>
+    </void>
+    <void property="details">
+     <string>Pickup: Over Here</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:38:28</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CONFIRM_HANDOVER</string>
+    </void>
+    <void property="details">
+     <string>Item ID: d6f81427-731f-4bfc-8370-5473809a6654</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:39:03</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:39:38</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>ADD_TO_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: fb10fcb2-28fe-4012-ab0a-8899bc93a5fa, Qty: 1</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:40:27</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>ADD_TO_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: a38eee28-44dc-4540-b819-d0821b8d79d7, Qty: 12</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:40:34</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>ADD_TO_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: a38eee28-44dc-4540-b819-d0821b8d79d7, Qty: 12</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:40:41</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CHECKOUT_CART</string>
+    </void>
+    <void property="details">
+     <string>Pickup: there</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:40:49</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REMOVE_FROM_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: a38eee28-44dc-4540-b819-d0821b8d79d7</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:41:03</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CONFIRM_HANDOVER</string>
+    </void>
+    <void property="details">
+     <string>Item ID: 77e77fa9-73e7-45e0-94af-58fd7405bbf1</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:41:16</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:43:12</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:43:12</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:43:14</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:43:16</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:43:43</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:47:40</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:48:06</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-02-28 12:48:08</string>
+    </void>
+    <void property="user">
+     <string>speed</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REGISTER</string>
+    </void>
+    <void property="details">
+     <string>Created new account</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:44:04</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REGISTER</string>
+    </void>
+    <void property="details">
+     <string>Created new account</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:44:47</string>
+    </void>
+    <void property="user">
+     <string>NewOwner</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:45:22</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>APPROVE_USER</string>
+    </void>
+    <void property="details">
+     <string>Approved account: NewConsumer</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:45:29</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>APPROVE_USER</string>
+    </void>
+    <void property="details">
+     <string>Approved account: NewOwner</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:45:32</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:45:45</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:45:53</string>
+    </void>
+    <void property="user">
+     <string>NewOwner</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CREATE_ITEM</string>
+    </void>
+    <void property="details">
+     <string>Item Name: pancit, Price: 1000.0</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:46:47</string>
+    </void>
+    <void property="user">
+     <string>NewOwner</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>ADD_TO_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: ad1dfe37-6c23-49ef-a950-0036ebdc1359, Qty: 120</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:46:58</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REMOVE_FROM_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: ad1dfe37-6c23-49ef-a950-0036ebdc1359</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:47:07</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>ADD_TO_CART</string>
+    </void>
+    <void property="details">
+     <string>ItemId: ad1dfe37-6c23-49ef-a950-0036ebdc1359, Qty: 100</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:47:07</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>CHECKOUT_CART</string>
+    </void>
+    <void property="details">
+     <string>Pickup: Baguu</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:47:16</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>UPDATE_ITEM</string>
+    </void>
+    <void property="details">
+     <string>Updated Item ID: ad1dfe37-6c23-49ef-a950-0036ebdc1359</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:47:36</string>
+    </void>
+    <void property="user">
+     <string>NewOwner</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>GET_EXPIRY_NOTIFICATIONS</string>
+    </void>
+    <void property="details">
+     <string>Items expiring in 3 days: 0</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:48:02</string>
+    </void>
+    <void property="user">
+     <string>NewOwner</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:48:16</string>
+    </void>
+    <void property="user">
+     <string>NewConsumer</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:48:16</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 15:48:18</string>
+    </void>
+    <void property="user">
+     <string>NewOwner</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:04:42</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:06:20</string>
+    </void>
+    <void property="user">
+     <string>johnpork</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:06:46</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>UPDATE_USERNAME</string>
+    </void>
+    <void property="details">
+     <string>Changed name to: zilong</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:07:00</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:07:10</string>
+    </void>
+    <void property="user">
+     <string>lebron</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:08:47</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>DELETE_ITEM</string>
+    </void>
+    <void property="details">
+     <string>Deleted Item ID: fb10fcb2-28fe-4012-ab0a-8899bc93a5fa</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:08:53</string>
+    </void>
+    <void property="user">
+     <string>System/User</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>DELETE_USER</string>
+    </void>
+    <void property="details">
+     <string>Deleted username: NewOwner</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:08:58</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>DELETE_USER</string>
+    </void>
+    <void property="details">
+     <string>Deleted username: NewConsumer</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:09:01</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:09:11</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:14:38</string>
+    </void>
+    <void property="user">
+     <string>zilong</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>UPDATE_PASSWORD</string>
+    </void>
+    <void property="details">
+     <string>Changed password</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:14:55</string>
+    </void>
+    <void property="user">
+     <string>zilong</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:15:00</string>
+    </void>
+    <void property="user">
+     <string>zilong</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>REGISTER</string>
+    </void>
+    <void property="details">
+     <string>Created new account</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:28:59</string>
+    </void>
+    <void property="user">
+     <string>legends</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:29:09</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>APPROVE_USER</string>
+    </void>
+    <void property="details">
+     <string>Approved account: legends</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:29:13</string>
+    </void>
+    <void property="user">
+     <string>ADMIN</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:29:25</string>
+    </void>
+    <void property="user">
+     <string>legends</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:29:35</string>
+    </void>
+    <void property="user">
+     <string>legends</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-03-01 18:29:35</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGIN</string>
+    </void>
+    <void property="details">
+     <string>Successful Login</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-11-05 08:42:13</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+  <void method="add">
+   <object class="com.thriftbite.common.TransactionDTO">
+    <void property="action">
+     <string>LOGOUT</string>
+    </void>
+    <void property="details">
+     <string>Client disconnected</string>
+    </void>
+    <void property="timestamp">
+     <string>2026-11-05 08:42:23</string>
+    </void>
+    <void property="user">
+     <string>godmode</string>
+    </void>
+   </object>
+  </void>
+ </object>
+</java>

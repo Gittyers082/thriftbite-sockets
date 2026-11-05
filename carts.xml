@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<java version="25.0.2" class="java.beans.XMLDecoder">
+ <object class="java.util.ArrayList">
+  <void method="add">
+   <object class="com.thriftbite.common.CartEntryDTO">
+    <void property="itemId">
+     <string>fb10fcb2-28fe-4012-ab0a-8899bc93a5fa</string>
+    </void>
+    <void property="quantity">
+     <int>1</int>
+    </void>
+    <void property="userId">
+     <string>zilong</string>
+    </void>
+   </object>
+  </void>
+ </object>
+</java>

@@ -1,0 +1,15 @@
+# Build output
+target/
+out/
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# OS files
+.DS_Store
+Thumbs.db
