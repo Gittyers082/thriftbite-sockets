@@ -105,6 +105,35 @@ public class Item {
         updatedAt = Instant.now();
     }
 
+    /** Owner edits a listing. Stock decides whether it's for sale. */
+    public void update(String name, String description,
+                       BigDecimal price, BigDecimal originalPrice, int quantity,
+                       Instant expiresAt, String pickupLocation,
+                       Instant pickupStart, Instant pickupEnd) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+        this.originalPrice = originalPrice;
+        this.quantity = quantity;
+        this.expiresAt = expiresAt;
+        this.pickupLocation = pickupLocation;
+        this.pickupStart = pickupStart;
+        this.pickupEnd = pickupEnd;
+        this.status = quantity > 0 ? ItemStatus.AVAILABLE : ItemStatus.SOLD_OUT;
+    }
+
+    /**
+     * Soft delete: the row stays because past reservations still point at it,
+     * but the item disappears from every listing.
+     */
+    public void remove() {
+        this.status = ItemStatus.REMOVED;
+    }
+
+    public boolean isRemoved() {
+        return status == ItemStatus.REMOVED;
+    }
+
     public boolean isOwnedBy(UUID userId) {
         return owner.getId().equals(userId);
     }

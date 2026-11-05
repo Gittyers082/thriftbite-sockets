@@ -20,6 +20,20 @@ public final class ApiExceptions {
         }
     }
 
+    /** 400: the request is well-formed but breaks a business rule. */
+    public static class BadRequestException extends RuntimeException {
+        public BadRequestException(String message) {
+            super(message);
+        }
+    }
+
+    /** 403: logged in, but not allowed to touch this resource (e.g. another owner's item). */
+    public static class ForbiddenException extends RuntimeException {
+        public ForbiddenException(String message) {
+            super(message);
+        }
+    }
+
     /** 403: the user is known, but isn't allowed to do this yet. */
     public static class AccountNotApprovedException extends RuntimeException {
         public AccountNotApprovedException() {

@@ -26,6 +26,12 @@ cd backend
 ```
 The API runs at http://localhost:8080 (health check: `/actuator/health`).
 
+To create an admin account locally, set these before starting (PowerShell):
+```powershell
+$env:APP_ADMIN_USERNAME = "admin"
+$env:APP_ADMIN_PASSWORD = "<at-least-12-characters>"
+```
+
 **Frontend**
 ```bash
 cd frontend
@@ -38,6 +44,24 @@ npm run dev
 cd backend
 ./mvnw verify                 # needs Docker for Testcontainers
 ```
+
+## API
+
+| Method | Endpoint | Who | What it does |
+|---|---|---|---|
+| POST | `/api/auth/register` | anyone | Sign up as `OWNER` or `CONSUMER` (owners need approval) |
+| POST | `/api/auth/login` | anyone | Returns a JWT to send as `Authorization: Bearer <token>` |
+| GET | `/api/auth/me` | logged in | The current user |
+| GET | `/api/items?q=&page=&size=` | anyone | Browse food for sale, soonest-expiring first |
+| GET | `/api/items/{id}` | anyone | One listing |
+| GET | `/api/owner/items` | owner | Your own listings |
+| POST | `/api/owner/items` | owner | Create a listing |
+| PUT | `/api/owner/items/{id}` | owner | Edit a listing (send the `version` you loaded) |
+| DELETE | `/api/owner/items/{id}` | owner | Remove a listing |
+| GET | `/api/admin/owners/pending` | admin | Owners waiting for approval |
+| POST | `/api/admin/users/{id}/approve` | admin | Approve an owner |
+
+Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format.
 
 ## Project structure
 

@@ -1,9 +1,12 @@
 package com.thriftbite.backend.common;
 
 import com.thriftbite.backend.common.ApiExceptions.AccountNotApprovedException;
+import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
+import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -43,5 +46,22 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AccountNotApprovedException.class)
     ProblemDetail notApproved(AccountNotApprovedException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    ProblemDetail badRequest(BadRequestException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    ProblemDetail forbidden(ForbiddenException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    /** Someone else changed this row (e.g. a buyer reserved stock) since the client last read it. */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail staleUpdate(OptimisticLockingFailureException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "This item changed since you loaded it. Reload and try again.");
     }
 }
