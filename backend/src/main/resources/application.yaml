@@ -39,3 +39,7 @@ app:
     # Creates the first admin account on startup if it doesn't exist yet.
     username: ${APP_ADMIN_USERNAME:}
     password: ${APP_ADMIN_PASSWORD:}
+  expiry:
+    # How often ExpiryJob expires old food and missed pickups (ISO-8601 durations)
+    interval: PT5M
+    initial-delay: PT1M

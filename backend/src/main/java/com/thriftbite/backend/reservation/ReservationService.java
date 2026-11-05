@@ -139,6 +139,34 @@ public class ReservationService {
         return response;
     }
 
+    /**
+     * Buyers who missed their pickup deadline lose the reservation, and the
+     * food goes back on sale if it hasn't expired. Called by ExpiryJob.
+     *
+     * @return how many reservations expired
+     */
+    @Transactional
+    public int expireMissedPickups(Instant now) {
+        List<Reservation> missed = reservations.findByStatusAndPickupDeadlineBefore(ReservationStatus.RESERVED, now);
+        List<Wanted> toRestock = new ArrayList<>();
+        for (Reservation reservation : missed) {
+            reservation.expire();
+            reservation.getItems().forEach(line ->
+                    toRestock.add(new Wanted(line.getItem().getId(), line.getItemName(), line.getQuantity())));
+        }
+        toRestock.sort(Comparator.comparing(Wanted::itemId));
+
+        // The first restock flushes the status changes above before clearing the session.
+        for (Wanted w : toRestock) {
+            items.restock(w.itemId(), w.quantity(), now);
+            items.markAvailableIfRestocked(w.itemId(), ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT);
+        }
+        if (toRestock.isEmpty()) {
+            reservations.flush();
+        }
+        return missed.size();
+    }
+
     @Transactional(readOnly = true)
     public List<ReservationResponse> listActiveForOwner(UUID ownerId) {
         return reservations.findByOwnerIdAndStatusOrderByPickupDeadlineAsc(ownerId, ReservationStatus.RESERVED)

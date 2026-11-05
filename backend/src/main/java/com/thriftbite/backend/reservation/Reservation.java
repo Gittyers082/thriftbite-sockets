@@ -98,6 +98,11 @@ public class Reservation {
         this.status = ReservationStatus.CANCELLED;
     }
 
+    /** The buyer didn't show up before the pickup deadline. */
+    public void expire() {
+        this.status = ReservationStatus.EXPIRED;
+    }
+
     public UUID getId() { return id; }
     public User getBuyer() { return buyer; }
     public User getOwner() { return owner; }

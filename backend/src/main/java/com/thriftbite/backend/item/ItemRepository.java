@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -98,6 +99,21 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
     int markAvailableIfRestocked(@Param("itemId") UUID itemId,
                                  @Param("available") ItemStatus available,
                                  @Param("soldOut") ItemStatus soldOut);
+
+    /** Takes everything past its expiry time off sale, in one statement. */
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update Item i
+               set i.status = :expired,
+                   i.version = i.version + 1,
+                   i.updatedAt = :now
+             where i.status in :onSale
+               and i.expiresAt <= :now
+            """)
+    int expireOldItems(@Param("now") Instant now,
+                       @Param("expired") ItemStatus expired,
+                       @Param("onSale") Collection<ItemStatus> onSale);
 
     /** Marks an item SOLD_OUT once its stock reaches zero. */
     @Transactional
