@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: thriftbite
+
+  # Locally, the database connection comes from compose.yaml (Docker Compose support).
+  # In production, set SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME and
+  # SPRING_DATASOURCE_PASSWORD as environment variables (see .env.example).
+
+  jpa:
+    open-in-view: false          # keep database access inside services, not views
+    hibernate:
+      ddl-auto: validate         # Flyway owns the schema; Hibernate only checks it matches
+
+  flyway:
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}             # Render and similar hosts provide PORT
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

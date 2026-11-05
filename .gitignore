@@ -1,7 +1,16 @@
 # Build output
 target/
 out/
+dist/
 *.class
+
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example
 
 # IDE files
 .idea/
@@ -9,6 +18,9 @@ out/
 .vscode/*
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Tool-generated files
+.github/modernize/
 
 # OS files
 .DS_Store
