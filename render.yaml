@@ -8,9 +8,13 @@ services:
     plan: free
     region: singapore              # closest Render region to Baguio
     branch: main
-    rootDir: backend               # changes outside backend/ don't redeploy
+    # Paths are from the repo root. (Setting rootDir instead made Render look
+    # for backend/backend.) buildFilter keeps frontend-only pushes from redeploying.
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
+    buildFilter:
+      paths:
+        - backend/**
     autoDeployTrigger: checksPass  # deploy only after GitHub Actions CI passes
     healthCheckPath: /actuator/health/liveness
     envVars:
