@@ -1,0 +1,28 @@
+# Build output
+target/
+out/
+dist/
+*.class
+
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example
+commit-msg*.txt
+
+# IDE files
+.idea/
+*.iml
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Tool-generated files
+.github/modernize/
+
+# OS files
+.DS_Store
+Thumbs.db

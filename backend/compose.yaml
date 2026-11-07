@@ -1,0 +1,17 @@
+# Local development database. Spring Boot starts this automatically
+# when you run the backend (spring-boot-docker-compose), so you don't
+# need to run `docker compose up` yourself. Docker Desktop must be running.
+services:
+  postgres:
+    image: 'postgres:17'
+    environment:
+      - 'POSTGRES_DB=thriftbite'
+      - 'POSTGRES_USER=thriftbite'
+      - 'POSTGRES_PASSWORD=thriftbite_dev'   # local-only dev password, not used in production
+    ports:
+      - '5432:5432'
+    volumes:
+      - 'thriftbite-pgdata:/var/lib/postgresql/data'
+
+volumes:
+  thriftbite-pgdata:
