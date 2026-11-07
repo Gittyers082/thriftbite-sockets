@@ -17,7 +17,11 @@ public record RegisterRequest(
         String password,
 
         @NotNull
-        AccountType accountType
+        AccountType accountType,
+
+        // Owners only: the store's name as buyers will see it. Defaults to the username.
+        @Size(max = 80)
+        String storeName
 ) {
     /** The roles anyone can sign up for. ADMIN isn't here, so it can't be requested. */
     public enum AccountType {

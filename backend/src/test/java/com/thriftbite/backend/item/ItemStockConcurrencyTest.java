@@ -1,6 +1,8 @@
 package com.thriftbite.backend.item;
 
 import com.thriftbite.backend.TestcontainersConfiguration;
+import com.thriftbite.backend.store.Store;
+import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
 import com.thriftbite.backend.user.UserRepository;
@@ -37,6 +39,9 @@ class ItemStockConcurrencyTest {
 
     @Autowired
     private ItemRepository items;
+
+    @Autowired
+    private StoreService stores;
 
     @Test
     void twoBuyersRacingForTheLastUnitOnlyOneWins() throws Exception {
@@ -120,9 +125,10 @@ class ItemStockConcurrencyTest {
     private Item saveItem(int quantity) {
         // Unique username per test, since all tests share one database.
         User owner = users.save(new User("owner-" + UUID.randomUUID(), "not-a-real-hash", Role.OWNER));
+        Store store = stores.createForOwner(owner, "Test Bakery");
         Instant now = Instant.now();
         return items.save(new Item(
-                owner, "Pandesal (bag of 10)", "Baked this morning",
+                store, owner, "Pandesal (bag of 10)", "Baked this morning",
                 new BigDecimal("25.00"), new BigDecimal("50.00"), quantity,
                 now.plus(Duration.ofHours(6)), "Session Road",
                 now, now.plus(Duration.ofHours(4))));

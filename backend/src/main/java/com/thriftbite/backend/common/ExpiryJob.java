@@ -1,7 +1,6 @@
 package com.thriftbite.backend.common;
 
-import com.thriftbite.backend.item.ItemRepository;
-import com.thriftbite.backend.item.ItemStatus;
+import com.thriftbite.backend.item.StockEvents;
 import com.thriftbite.backend.reservation.ReservationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -35,17 +33,17 @@ public class ExpiryJob {
     private static final Logger log = LoggerFactory.getLogger(ExpiryJob.class);
 
     private final ReservationService reservations;
-    private final ItemRepository items;
+    private final StockEvents stock;
     private final Duration lazyMinGap;
 
     /** One run at a time: the scheduled run and an on-demand run must not restock the same food twice. */
     private final ReentrantLock running = new ReentrantLock();
     private volatile Instant lastRun = Instant.EPOCH;
 
-    public ExpiryJob(ReservationService reservations, ItemRepository items,
+    public ExpiryJob(ReservationService reservations, StockEvents stock,
                      @Value("${app.expiry.lazy-min-gap:PT30S}") Duration lazyMinGap) {
         this.reservations = reservations;
-        this.items = items;
+        this.stock = stock;
         this.lazyMinGap = lazyMinGap;
     }
 
@@ -86,7 +84,7 @@ public class ExpiryJob {
         Instant now = Instant.now();
         lastRun = now;
         int missed = reservations.expireMissedPickups(now);
-        int expired = items.expireOldItems(now, ItemStatus.EXPIRED, List.of(ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT));
+        int expired = stock.expireOldItems(now);
         if (missed > 0 || expired > 0) {
             log.info("Expiry run: {} missed pickups, {} items expired", missed, expired);
         }

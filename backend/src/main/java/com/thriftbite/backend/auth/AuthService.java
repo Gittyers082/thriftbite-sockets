@@ -9,6 +9,7 @@ import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.common.ApiExceptions.TooManyRequestsException;
 import com.thriftbite.backend.common.ratelimit.LoginAttempts;
+import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
 import com.thriftbite.backend.user.UserRepository;
@@ -29,6 +30,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokens;
     private final LoginAttempts loginAttempts;
+    private final StoreService stores;
 
     /**
      * Compared against when a username doesn't exist, so a failed login takes
@@ -37,11 +39,12 @@ public class AuthService {
     private final String dummyHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder, TokenService tokens,
-                       LoginAttempts loginAttempts) {
+                       LoginAttempts loginAttempts, StoreService stores) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
         this.loginAttempts = loginAttempts;
+        this.stores = stores;
         this.dummyHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
@@ -56,6 +59,10 @@ public class AuthService {
             case CONSUMER -> Role.CONSUMER;
         };
         User user = users.save(new User(username, passwordEncoder.encode(request.password()), role));
+        if (role == Role.OWNER) {
+            // The store exists from sign-up, but it can't list food until an admin approves the owner.
+            stores.createForOwner(user, request.storeName());
+        }
         return UserResponse.from(user);
     }
 

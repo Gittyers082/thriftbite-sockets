@@ -7,7 +7,8 @@ import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.common.PageResponse;
 import com.thriftbite.backend.item.dto.ItemRequest;
 import com.thriftbite.backend.item.dto.ItemResponse;
-import com.thriftbite.backend.user.User;
+import com.thriftbite.backend.store.StoreRepository;
+import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.UserRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -25,10 +26,17 @@ public class ItemService {
 
     private final ItemRepository items;
     private final UserRepository users;
+    private final StoreRepository storeRepository;
+    private final StoreService stores;
+    private final StockEvents events;
 
-    public ItemService(ItemRepository items, UserRepository users) {
+    public ItemService(ItemRepository items, UserRepository users, StoreRepository storeRepository,
+                       StoreService stores, StockEvents events) {
         this.items = items;
         this.users = users;
+        this.storeRepository = storeRepository;
+        this.stores = stores;
+        this.events = events;
     }
 
     // ---- public ----
@@ -46,66 +54,77 @@ public class ItemService {
         return ItemResponse.from(findVisible(itemId));
     }
 
-    // ---- owner only (the owner id always comes from the login token) ----
+    // ---- store only (the user id always comes from the login token; the store is looked up from it) ----
 
     @Transactional(readOnly = true)
-    public List<ItemResponse> listMine(UUID ownerId) {
-        return items.findByOwnerIdAndStatusNotOrderByExpiresAtAsc(ownerId, ItemStatus.REMOVED).stream()
+    public List<ItemResponse> listMine(UUID userId) {
+        return items.findByStoreIdAndStatusNotOrderByExpiresAtAsc(stores.storeIdFor(userId), ItemStatus.REMOVED)
+                .stream()
                 .map(ItemResponse::from)
                 .toList();
     }
 
     @Transactional
-    public ItemResponse create(UUID ownerId, ItemRequest request) {
+    public ItemResponse create(UUID userId, ItemRequest request) {
         if (request.quantity() < 1) {
             throw new BadRequestException("quantity must be at least 1 for a new listing");
         }
         checkBusinessRules(request);
-        User owner = users.getReferenceById(ownerId);
-        Item item = items.save(new Item(
-                owner, request.name().trim(), request.description(),
+        UUID storeId = stores.storeIdFor(userId);
+        Item item = items.saveAndFlush(new Item(
+                storeRepository.getReferenceById(storeId), users.getReferenceById(userId),
+                request.name().trim(), request.description(),
                 request.price(), request.originalPrice(), request.quantity(),
                 request.expiresAt(), request.pickupLocation().trim(),
                 request.pickupStart(), request.pickupEnd()));
+        events.record(item.getId(), StockEventType.LISTED, item.getQuantity(), null, userId);
         return ItemResponse.from(item);
     }
 
     @Transactional
-    public ItemResponse update(UUID ownerId, UUID itemId, ItemRequest request) {
+    public ItemResponse update(UUID userId, UUID itemId, ItemRequest request) {
         if (request.version() == null) {
             throw new BadRequestException("version is required when updating an item");
         }
-        Item item = findOwned(ownerId, itemId);
+        Item item = findOwned(userId, itemId);
         if (item.getVersion() != request.version()) {
             // Stock or details changed since the owner loaded the form (e.g. a buyer just reserved some).
             throw new ConflictException("This item changed since you loaded it. Reload and try again.");
         }
         checkBusinessRules(request);
+        int before = item.getQuantity();
         item.update(request.name().trim(), request.description(),
                 request.price(), request.originalPrice(), request.quantity(),
                 request.expiresAt(), request.pickupLocation().trim(),
                 request.pickupStart(), request.pickupEnd());
-        items.flush();   // write now, so the response shows the new version number
+        items.flush();   // write now, so the response shows the new version number (and the event sees the new stock)
+        if (item.getQuantity() != before) {
+            events.record(item.getId(), StockEventType.ADJUSTED, item.getQuantity() - before, null, userId);
+        }
         return ItemResponse.from(item);
     }
 
     @Transactional
-    public void remove(UUID ownerId, UUID itemId) {
-        findOwned(ownerId, itemId).remove();
+    public void remove(UUID userId, UUID itemId) {
+        Item item = findOwned(userId, itemId);
+        item.remove();
+        items.flush();
+        events.record(item.getId(), StockEventType.REMOVED, 0, null, userId);
     }
 
     // ---- helpers ----
 
     private Item findVisible(UUID itemId) {
-        return items.findWithOwnerById(itemId)
+        return items.findWithStoreById(itemId)
                 .filter(item -> !item.isRemoved())
                 .orElseThrow(() -> new NotFoundException("Item not found"));
     }
 
-    private Item findOwned(UUID ownerId, UUID itemId) {
+    private Item findOwned(UUID userId, UUID itemId) {
+        UUID storeId = stores.storeIdFor(userId);
         Item item = findVisible(itemId);
-        if (!item.isOwnedBy(ownerId)) {
-            throw new ForbiddenException("You can only change your own listings");
+        if (!item.belongsTo(storeId)) {
+            throw new ForbiddenException("You can only change your own store's listings");
         }
         return item;
     }

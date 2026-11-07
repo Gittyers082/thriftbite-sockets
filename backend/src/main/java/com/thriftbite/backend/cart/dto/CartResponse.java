@@ -16,7 +16,8 @@ public record CartResponse(List<Line> lines, BigDecimal total) {
      *                  added, so the UI can warn before checkout fails
      */
     public record Line(UUID itemId, String name, BigDecimal price, int quantity, BigDecimal lineTotal,
-                       int quantityLeft, boolean available, String ownerName, String pickupLocation) {
+                       int quantityLeft, boolean available, UUID storeId, String storeName,
+                       String pickupLocation) {
     }
 
     public static CartResponse from(List<CartItem> cartItems, Instant now) {
@@ -27,7 +28,8 @@ public record CartResponse(List<Line> lines, BigDecimal total) {
                     && item.getQuantity() >= cartItem.getQuantity();
             return new Line(item.getId(), item.getName(), item.getPrice(), cartItem.getQuantity(),
                     item.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())),
-                    item.getQuantity(), available, item.getOwner().getUsername(), item.getPickupLocation());
+                    item.getQuantity(), available, item.getStore().getId(), item.getStore().getName(),
+                    item.getPickupLocation());
         }).toList();
         BigDecimal total = lines.stream().map(Line::lineTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
         return new CartResponse(lines, total);

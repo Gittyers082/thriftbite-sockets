@@ -37,6 +37,10 @@ public class ReservationItem {
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
 
+    /** The usual price at checkout, so "discount given" stays right after the owner edits the item. */
+    @Column(name = "original_unit_price", nullable = false, precision = 10, scale = 2)
+    private BigDecimal originalUnitPrice;
+
     @Column(nullable = false)
     private int quantity;
 
@@ -48,6 +52,7 @@ public class ReservationItem {
         this.item = item;
         this.itemName = item.getName();
         this.unitPrice = item.getPrice();
+        this.originalUnitPrice = item.getOriginalPrice();
         this.quantity = quantity;
     }
 
@@ -64,5 +69,6 @@ public class ReservationItem {
     public Item getItem() { return item; }
     public String getItemName() { return itemName; }
     public BigDecimal getUnitPrice() { return unitPrice; }
+    public BigDecimal getOriginalUnitPrice() { return originalUnitPrice; }
     public int getQuantity() { return quantity; }
 }

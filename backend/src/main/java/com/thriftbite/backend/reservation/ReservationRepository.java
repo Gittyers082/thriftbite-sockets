@@ -11,13 +11,13 @@ import java.util.UUID;
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
     /** Loads everything a response needs in one go, instead of one query per line. */
-    @EntityGraph(attributePaths = {"buyer", "owner", "items", "items.item"})
+    @EntityGraph(attributePaths = {"buyer", "store", "items", "items.item"})
     List<Reservation> findByBuyerIdOrderByCreatedAtDesc(UUID buyerId);
 
-    @EntityGraph(attributePaths = {"buyer", "owner", "items", "items.item"})
-    List<Reservation> findByOwnerIdAndStatusOrderByPickupDeadlineAsc(UUID ownerId, ReservationStatus status);
+    @EntityGraph(attributePaths = {"buyer", "store", "items", "items.item"})
+    List<Reservation> findByStoreIdAndStatusOrderByPickupDeadlineAsc(UUID storeId, ReservationStatus status);
 
-    @EntityGraph(attributePaths = {"buyer", "owner", "items", "items.item"})
+    @EntityGraph(attributePaths = {"buyer", "store", "items", "items.item"})
     Optional<Reservation> findWithDetailsById(UUID id);
 
     /** How many reservations a buyer is holding right now (status RESERVED). */

@@ -1,5 +1,6 @@
 package com.thriftbite.backend.reservation;
 
+import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -7,8 +8,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -26,15 +25,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * One buyer picking up from one owner. Named "Reservation" rather than "Order"
+ * One buyer picking up from one store. Named "Reservation" rather than "Order"
  * because ORDER is a reserved word in SQL and JPQL.
  */
 @Entity
 @Table(name = "reservations")
 public class Reservation {
 
+    /**
+     * Set by the app, not the database: checkout needs the id before the row
+     * exists, to put it on the stock history (item_events) as it takes stock.
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -42,8 +44,8 @@ public class Reservation {
     private User buyer;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -64,6 +66,12 @@ public class Reservation {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
+
+    @Column(name = "expired_at")
+    private Instant expiredAt;
+
     /** Wrong claim codes entered since the last lock (or since it was created). */
     @Column(name = "failed_code_attempts", nullable = false)
     private int failedCodeAttempts;
@@ -72,9 +80,13 @@ public class Reservation {
     @Column(name = "code_locked_until")
     private Instant codeLockedUntil;
 
-    /** Optimistic lock: two writers (e.g. the expiry job and a cancel) can't both win. */
+    /**
+     * Optimistic lock: two writers (e.g. the expiry job and a cancel) can't both win.
+     * A wrapper type, so Spring Data can tell a new reservation (null) from a saved one,
+     * now that the id is set before saving.
+     */
     @Version
-    private long version;
+    private Long version;
 
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ReservationItem> items = new ArrayList<>();
@@ -83,9 +95,14 @@ public class Reservation {
         // required by JPA
     }
 
-    public Reservation(User buyer, User owner, String claimCode, Instant pickupDeadline) {
+    public Reservation(User buyer, Store store, String claimCode, Instant pickupDeadline) {
+        this(UUID.randomUUID(), buyer, store, claimCode, pickupDeadline);
+    }
+
+    public Reservation(UUID id, User buyer, Store store, String claimCode, Instant pickupDeadline) {
+        this.id = id;
         this.buyer = buyer;
-        this.owner = owner;
+        this.store = store;
         this.claimCode = claimCode;
         this.pickupDeadline = pickupDeadline;
         this.status = ReservationStatus.RESERVED;
@@ -131,24 +148,28 @@ public class Reservation {
         return maxAttempts - failedCodeAttempts;
     }
 
-    public void cancel() {
+    public void cancel(Instant when) {
         this.status = ReservationStatus.CANCELLED;
+        this.cancelledAt = when;
     }
 
     /** The buyer didn't show up before the pickup deadline. */
-    public void expire() {
+    public void expire(Instant when) {
         this.status = ReservationStatus.EXPIRED;
+        this.expiredAt = when;
     }
 
     public UUID getId() { return id; }
     public User getBuyer() { return buyer; }
-    public User getOwner() { return owner; }
+    public Store getStore() { return store; }
     public ReservationStatus getStatus() { return status; }
     public String getClaimCode() { return claimCode; }
     public Instant getPickupDeadline() { return pickupDeadline; }
     public BigDecimal getTotal() { return total; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getCompletedAt() { return completedAt; }
+    public Instant getCancelledAt() { return cancelledAt; }
+    public Instant getExpiredAt() { return expiredAt; }
     public Instant getCodeLockedUntil() { return codeLockedUntil; }
     public List<ReservationItem> getItems() { return Collections.unmodifiableList(items); }
 }

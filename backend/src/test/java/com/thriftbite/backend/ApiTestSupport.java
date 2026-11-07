@@ -1,6 +1,7 @@
 package com.thriftbite.backend;
 
 import com.jayway.jsonpath.JsonPath;
+import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
 import com.thriftbite.backend.user.UserRepository;
@@ -47,6 +48,9 @@ public abstract class ApiTestSupport {
     @Autowired
     protected PasswordEncoder passwordEncoder;
 
+    @Autowired
+    protected StoreService stores;
+
     protected MockMvc mvc;
 
     @BeforeEach
@@ -54,12 +58,15 @@ public abstract class ApiTestSupport {
         mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
-    /** Creates an approved user straight in the database and returns a login token for them. */
+    /** Creates an approved user straight in the database (owners get a store) and returns a login token. */
     protected String tokenFor(Role role) throws Exception {
         String username = uniqueName();
         User user = new User(username, passwordEncoder.encode(PASSWORD), role);
         user.approve();
         users.save(user);
+        if (role == Role.OWNER) {
+            stores.createForOwner(user, "Store of " + username);
+        }
         return login(username);
     }
 

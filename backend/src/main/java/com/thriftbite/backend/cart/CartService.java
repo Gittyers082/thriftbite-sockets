@@ -44,7 +44,7 @@ public class CartService {
             return view(userId);
         }
 
-        Item item = items.findWithOwnerById(itemId)
+        Item item = items.findWithStoreById(itemId)
                 .filter(found -> !found.isRemoved())
                 .orElseThrow(() -> new NotFoundException("Item not found"));
         if (item.getStatus() != ItemStatus.AVAILABLE || !item.getExpiresAt().isAfter(Instant.now())) {

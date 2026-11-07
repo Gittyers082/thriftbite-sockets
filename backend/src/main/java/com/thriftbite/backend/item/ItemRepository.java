@@ -10,7 +10,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,7 +23,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
      * @param namePattern a LIKE pattern built by ItemService, with '!' as the escape character
      */
     @Query(value = """
-            select i from Item i join fetch i.owner
+            select i from Item i join fetch i.store
              where i.status = :status
                and i.expiresAt > :now
                and lower(i.name) like :namePattern escape '!'
@@ -41,12 +40,12 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
                       @Param("namePattern") String namePattern,
                       Pageable pageable);
 
-    /** Loads the owner in the same query, so mapping to a response needs no extra lookups. */
-    @EntityGraph(attributePaths = "owner")
-    Optional<Item> findWithOwnerById(UUID id);
+    /** Loads the store in the same query, so mapping to a response needs no extra lookups. */
+    @EntityGraph(attributePaths = "store")
+    Optional<Item> findWithStoreById(UUID id);
 
-    @EntityGraph(attributePaths = "owner")
-    List<Item> findByOwnerIdAndStatusNotOrderByExpiresAtAsc(UUID ownerId, ItemStatus excluded);
+    @EntityGraph(attributePaths = "store")
+    List<Item> findByStoreIdAndStatusNotOrderByExpiresAtAsc(UUID storeId, ItemStatus excluded);
 
     /**
      * Takes {@code quantity} units of stock in ONE statement: the check
@@ -99,21 +98,6 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
     int markAvailableIfRestocked(@Param("itemId") UUID itemId,
                                  @Param("available") ItemStatus available,
                                  @Param("soldOut") ItemStatus soldOut);
-
-    /** Takes everything past its expiry time off sale, in one statement. */
-    @Transactional
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("""
-            update Item i
-               set i.status = :expired,
-                   i.version = i.version + 1,
-                   i.updatedAt = :now
-             where i.status in :onSale
-               and i.expiresAt <= :now
-            """)
-    int expireOldItems(@Param("now") Instant now,
-                       @Param("expired") ItemStatus expired,
-                       @Param("onSale") Collection<ItemStatus> onSale);
 
     /** Marks an item SOLD_OUT once its stock reaches zero. */
     @Transactional

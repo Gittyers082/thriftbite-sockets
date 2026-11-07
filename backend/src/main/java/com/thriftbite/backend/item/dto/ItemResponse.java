@@ -21,8 +21,9 @@ public record ItemResponse(
         String pickupLocation,
         Instant pickupStart,
         Instant pickupEnd,
-        UUID ownerId,
-        String ownerName,
+        UUID storeId,
+        String storeName,
+        String storeSlug,
         long version
 ) {
 
@@ -40,8 +41,9 @@ public record ItemResponse(
                 item.getPickupLocation(),
                 item.getPickupStart(),
                 item.getPickupEnd(),
-                item.getOwner().getId(),
-                item.getOwner().getUsername(),
+                item.getStore().getId(),
+                item.getStore().getName(),
+                item.getStore().getSlug(),
                 item.getVersion());
     }
 

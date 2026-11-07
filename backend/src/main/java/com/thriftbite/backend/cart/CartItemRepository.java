@@ -12,8 +12,8 @@ import java.util.UUID;
 
 public interface CartItemRepository extends JpaRepository<CartItem, CartItemId> {
 
-    /** A user's cart, with each item and its owner loaded in the same query. */
-    @EntityGraph(attributePaths = {"item", "item.owner"})
+    /** A user's cart, with each item and its store loaded in the same query. */
+    @EntityGraph(attributePaths = {"item", "item.store"})
     List<CartItem> findByIdUserId(UUID userId);
 
     @Transactional

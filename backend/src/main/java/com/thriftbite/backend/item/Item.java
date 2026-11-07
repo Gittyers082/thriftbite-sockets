@@ -1,5 +1,6 @@
 package com.thriftbite.backend.item;
 
+import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,8 +30,13 @@ public class Item {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+
+    /** Who put the listing up (the column keeps its v1 name). The store, not this person, owns it. */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
+    private User listedBy;
 
     @Column(nullable = false, length = 120)
     private String name;
@@ -77,11 +83,12 @@ public class Item {
         // required by JPA
     }
 
-    public Item(User owner, String name, String description,
+    public Item(Store store, User listedBy, String name, String description,
                 BigDecimal price, BigDecimal originalPrice, int quantity,
                 Instant expiresAt, String pickupLocation,
                 Instant pickupStart, Instant pickupEnd) {
-        this.owner = owner;
+        this.store = store;
+        this.listedBy = listedBy;
         this.name = name;
         this.description = description;
         this.price = price;
@@ -134,12 +141,13 @@ public class Item {
         return status == ItemStatus.REMOVED;
     }
 
-    public boolean isOwnedBy(UUID userId) {
-        return owner.getId().equals(userId);
+    public boolean belongsTo(UUID storeId) {
+        return store.getId().equals(storeId);
     }
 
     public UUID getId() { return id; }
-    public User getOwner() { return owner; }
+    public Store getStore() { return store; }
+    public User getListedBy() { return listedBy; }
     public String getName() { return name; }
     public String getDescription() { return description; }
     public BigDecimal getPrice() { return price; }

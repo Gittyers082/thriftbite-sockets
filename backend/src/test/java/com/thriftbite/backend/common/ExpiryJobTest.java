@@ -8,6 +8,7 @@ import com.thriftbite.backend.reservation.Reservation;
 import com.thriftbite.backend.reservation.ReservationItem;
 import com.thriftbite.backend.reservation.ReservationRepository;
 import com.thriftbite.backend.reservation.ReservationStatus;
+import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
 import org.junit.jupiter.api.Test;
@@ -37,8 +38,9 @@ class ExpiryJobTest extends ApiTestSupport {
     void foodPastItsExpiryIsTakenOffSale() {
         User owner = saveUser(Role.OWNER);
         Instant now = Instant.now();
-        Item stale = items.save(item(owner, 3, now.minus(Duration.ofMinutes(1))));
-        Item fresh = items.save(item(owner, 3, now.plus(Duration.ofHours(5))));
+        Store store = stores.createForOwner(owner, "Expiry Test Store");
+        Item stale = items.save(item(store, owner, 3, now.minus(Duration.ofMinutes(1))));
+        Item fresh = items.save(item(store, owner, 3, now.plus(Duration.ofHours(5))));
 
         job.run();
 
@@ -53,8 +55,9 @@ class ExpiryJobTest extends ApiTestSupport {
         Instant now = Instant.now();
 
         // all 2 units were reserved, so the item is sold out
-        Item item = items.save(item(owner, 0, now.plus(Duration.ofHours(5))));
-        Reservation reservation = new Reservation(buyer, owner, "123456", now.minus(Duration.ofMinutes(5)));
+        Store store = stores.createForOwner(owner, "Expiry Test Store");
+        Item item = items.save(item(store, owner, 0, now.plus(Duration.ofHours(5))));
+        Reservation reservation = new Reservation(buyer, store, "123456", now.minus(Duration.ofMinutes(5)));
         reservation.addItem(new ReservationItem(item, 2));
         reservation = reservations.save(reservation);
 
@@ -76,8 +79,9 @@ class ExpiryJobTest extends ApiTestSupport {
         User owner = saveUser(Role.OWNER);
         User buyer = saveUser(Role.CONSUMER);
         Instant now = Instant.now();
-        Item item = items.save(item(owner, 0, now.plus(Duration.ofHours(5))));
-        Reservation reservation = new Reservation(buyer, owner, "654321", now.minus(Duration.ofMinutes(1)));
+        Store store = stores.createForOwner(owner, "Expiry Test Store");
+        Item item = items.save(item(store, owner, 0, now.plus(Duration.ofHours(5))));
+        Reservation reservation = new Reservation(buyer, store, "654321", now.minus(Duration.ofMinutes(1)));
         reservation.addItem(new ReservationItem(item, 3));
         reservation = reservations.save(reservation);
 
@@ -95,8 +99,8 @@ class ExpiryJobTest extends ApiTestSupport {
         return users.save(user);
     }
 
-    private static Item item(User owner, int quantity, Instant expiresAt) {
-        return new Item(owner, "Test food", null,
+    private static Item item(Store store, User owner, int quantity, Instant expiresAt) {
+        return new Item(store, owner, "Test food", null,
                 new BigDecimal("10.00"), new BigDecimal("20.00"), quantity,
                 expiresAt, "Baguio", expiresAt.minus(Duration.ofHours(3)), expiresAt.minus(Duration.ofHours(2)));
     }

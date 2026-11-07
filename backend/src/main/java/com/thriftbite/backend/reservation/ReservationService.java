@@ -10,7 +10,11 @@ import com.thriftbite.backend.common.ApiExceptions.WrongClaimCodeException;
 import com.thriftbite.backend.item.Item;
 import com.thriftbite.backend.item.ItemRepository;
 import com.thriftbite.backend.item.ItemStatus;
+import com.thriftbite.backend.item.StockEventType;
+import com.thriftbite.backend.item.StockEvents;
 import com.thriftbite.backend.reservation.dto.ReservationResponse;
+import com.thriftbite.backend.store.StoreRepository;
+import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.User;
 import com.thriftbite.backend.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,12 +44,16 @@ public class ReservationService {
     private final ItemRepository items;
     private final ReservationRepository reservations;
     private final UserRepository users;
+    private final StoreRepository storeRepository;
+    private final StoreService stores;
+    private final StockEvents events;
     private final int maxActivePerBuyer;
     private final int maxCodeAttempts;
     private final Duration codeLock;
 
     public ReservationService(CartItemRepository cart, ItemRepository items,
                               ReservationRepository reservations, UserRepository users,
+                              StoreRepository storeRepository, StoreService stores, StockEvents events,
                               @Value("${app.reservations.max-active-per-buyer:2}") int maxActivePerBuyer,
                               @Value("${app.reservations.max-code-attempts:5}") int maxCodeAttempts,
                               @Value("${app.reservations.code-lock:PT15M}") Duration codeLock) {
@@ -53,13 +61,20 @@ public class ReservationService {
         this.items = items;
         this.reservations = reservations;
         this.users = users;
+        this.storeRepository = storeRepository;
+        this.stores = stores;
+        this.events = events;
         this.maxActivePerBuyer = maxActivePerBuyer;
         this.maxCodeAttempts = maxCodeAttempts;
         this.codeLock = codeLock;
     }
 
     /** What we need from a cart line, copied out before the stock updates clear the session. */
-    private record Wanted(UUID itemId, String name, int quantity) {
+    private record Wanted(UUID itemId, UUID storeId, String name, int quantity) {
+    }
+
+    /** Stock going back on sale from one reservation line. */
+    private record Release(UUID itemId, int quantity, UUID reservationId) {
     }
 
     /**
@@ -67,8 +82,8 @@ public class ReservationService {
      *
      * Every line takes its stock with one atomic UPDATE. If any line can't be
      * filled, the exception rolls back the whole transaction: stock already
-     * taken for earlier lines goes back, no reservation is saved, and the cart
-     * stays as it was.
+     * taken for earlier lines goes back, no reservation or stock event is
+     * saved, and the cart stays as it was.
      *
      * A buyer can hold only a few reservations at once, because reserving
      * costs nothing (buyers pay at the counter). Without a limit, one account
@@ -85,45 +100,53 @@ public class ReservationService {
             throw new BadRequestException("Your cart is empty");
         }
 
+        // Lock rows in a fixed order (by item id). If two checkouts share items,
+        // they then wait for each other instead of deadlocking.
+        List<Wanted> wanted = lines.stream()
+                .map(line -> new Wanted(line.getItem().getId(), line.getItem().getStore().getId(),
+                        line.getItem().getName(), line.getQuantity()))
+                .sorted(Comparator.comparing(Wanted::itemId))
+                .toList();
+
         long active = reservations.countByBuyerIdAndStatus(buyerId, ReservationStatus.RESERVED);
-        long adding = lines.stream().map(line -> line.getItem().getOwner().getId()).distinct().count();
+        long adding = wanted.stream().map(Wanted::storeId).distinct().count();
         if (active + adding > maxActivePerBuyer) {
             throw new ConflictException(reservationLimitMessage(active, adding));
         }
 
-        // Lock rows in a fixed order (by item id). If two checkouts share items,
-        // they then wait for each other instead of deadlocking.
-        List<Wanted> wanted = lines.stream()
-                .map(line -> new Wanted(line.getItem().getId(), line.getItem().getName(), line.getQuantity()))
-                .sorted(Comparator.comparing(Wanted::itemId))
-                .toList();
+        // One reservation per store: each store hands over its own food with its own claim code.
+        // Their ids are picked now, so every stock event below can point at its reservation.
+        Map<UUID, UUID> reservationIdByStore = new LinkedHashMap<>();
+        wanted.forEach(w -> reservationIdByStore.computeIfAbsent(w.storeId(), store -> UUID.randomUUID()));
 
         Instant now = Instant.now();
         for (Wanted w : wanted) {
+            UUID reservationId = reservationIdByStore.get(w.storeId());
             int reserved = items.reserveStock(w.itemId(), w.quantity(), now, ItemStatus.AVAILABLE);
             if (reserved == 0) {
                 throw new ConflictException("'" + w.name() + "' doesn't have " + w.quantity() + " left anymore");
             }
-            items.markSoldOutIfEmpty(w.itemId(), ItemStatus.SOLD_OUT);
+            events.record(w.itemId(), StockEventType.RESERVED, -w.quantity(), reservationId, buyerId);
+            if (items.markSoldOutIfEmpty(w.itemId(), ItemStatus.SOLD_OUT) == 1) {
+                events.record(w.itemId(), StockEventType.SOLD_OUT, 0, reservationId, buyerId);
+            }
         }
 
-        // The stock updates cleared the session, so load fresh copies (with owners) to build reservations.
+        // The stock updates cleared the session, so load fresh copies to build reservations.
         Map<UUID, Item> itemsById = items.findAllById(wanted.stream().map(Wanted::itemId).toList()).stream()
                 .collect(Collectors.toMap(Item::getId, Function.identity()));
         User buyer = users.getReferenceById(buyerId);
-
-        // One reservation per owner: each store hands over its own food with its own claim code.
-        Map<UUID, List<Wanted>> byOwner = wanted.stream().collect(Collectors.groupingBy(
-                w -> itemsById.get(w.itemId()).getOwner().getId(), LinkedHashMap::new, Collectors.toList()));
+        Map<UUID, List<Wanted>> byStore = wanted.stream()
+                .collect(Collectors.groupingBy(Wanted::storeId, LinkedHashMap::new, Collectors.toList()));
 
         List<Reservation> created = new ArrayList<>();
-        for (List<Wanted> ownerLines : byOwner.values()) {
-            List<Item> ownerItems = ownerLines.stream().map(w -> itemsById.get(w.itemId())).toList();
-            Instant pickupDeadline = ownerItems.stream().map(Item::getPickupEnd).min(Instant::compareTo).orElseThrow();
+        for (Map.Entry<UUID, List<Wanted>> entry : byStore.entrySet()) {
+            List<Item> storeItems = entry.getValue().stream().map(w -> itemsById.get(w.itemId())).toList();
+            Instant pickupDeadline = storeItems.stream().map(Item::getPickupEnd).min(Instant::compareTo).orElseThrow();
 
-            Reservation reservation = new Reservation(buyer, ownerItems.getFirst().getOwner(),
-                    newClaimCode(), pickupDeadline);
-            for (Wanted w : ownerLines) {
+            Reservation reservation = new Reservation(reservationIdByStore.get(entry.getKey()), buyer,
+                    storeRepository.getReferenceById(entry.getKey()), newClaimCode(), pickupDeadline);
+            for (Wanted w : entry.getValue()) {
                 reservation.addItem(new ReservationItem(itemsById.get(w.itemId()), w.quantity()));
             }
             created.add(reservations.save(reservation));
@@ -150,19 +173,11 @@ public class ReservationService {
             throw new ConflictException("Only active reservations can be cancelled");
         }
 
-        reservation.cancel();
-        ReservationResponse response = ReservationResponse.forBuyer(reservation);
-        List<Wanted> toRestock = reservation.getItems().stream()
-                .map(line -> new Wanted(line.getItem().getId(), line.getItemName(), line.getQuantity()))
-                .sorted(Comparator.comparing(Wanted::itemId))
-                .toList();
-
-        // The first restock flushes the cancellation above before clearing the session.
         Instant now = Instant.now();
-        for (Wanted w : toRestock) {
-            items.restock(w.itemId(), w.quantity(), now);
-            items.markAvailableIfRestocked(w.itemId(), ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT);
-        }
+        reservation.cancel(now);
+        ReservationResponse response = ReservationResponse.forBuyer(reservation);
+        // The first restock flushes the cancellation above before clearing the session.
+        restock(releasesOf(List.of(reservation)), now, buyerId);
         return response;
     }
 
@@ -175,44 +190,37 @@ public class ReservationService {
     @Transactional
     public int expireMissedPickups(Instant now) {
         List<Reservation> missed = reservations.findByStatusAndPickupDeadlineBefore(ReservationStatus.RESERVED, now);
-        List<Wanted> toRestock = new ArrayList<>();
-        for (Reservation reservation : missed) {
-            reservation.expire();
-            reservation.getItems().forEach(line ->
-                    toRestock.add(new Wanted(line.getItem().getId(), line.getItemName(), line.getQuantity())));
-        }
-        toRestock.sort(Comparator.comparing(Wanted::itemId));
-
+        missed.forEach(reservation -> reservation.expire(now));
+        List<Release> releases = releasesOf(missed);
         // The first restock flushes the status changes above before clearing the session.
-        for (Wanted w : toRestock) {
-            items.restock(w.itemId(), w.quantity(), now);
-            items.markAvailableIfRestocked(w.itemId(), ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT);
-        }
-        if (toRestock.isEmpty()) {
+        restock(releases, now, null);
+        if (releases.isEmpty()) {
             reservations.flush();
         }
         return missed.size();
     }
 
     @Transactional(readOnly = true)
-    public List<ReservationResponse> listActiveForOwner(UUID ownerId) {
-        return reservations.findByOwnerIdAndStatusOrderByPickupDeadlineAsc(ownerId, ReservationStatus.RESERVED)
+    public List<ReservationResponse> listActiveForOwner(UUID userId) {
+        return reservations.findByStoreIdAndStatusOrderByPickupDeadlineAsc(stores.storeIdFor(userId),
+                        ReservationStatus.RESERVED)
                 .stream()
                 .map(ReservationResponse::forOwner)
                 .toList();
     }
 
     /**
-     * Owner hands over the food after checking the buyer's claim code.
+     * The store hands over the food after checking the buyer's claim code.
      *
      * Wrong codes are counted, and after {@code maxCodeAttempts} in a row code
      * entry pauses. The transaction still commits on a wrong code
      * (noRollbackFor), otherwise the count would be rolled back with the error.
      */
     @Transactional(noRollbackFor = WrongClaimCodeException.class)
-    public ReservationResponse complete(UUID ownerId, UUID reservationId, String claimCode) {
+    public ReservationResponse complete(UUID userId, UUID reservationId, String claimCode) {
+        UUID storeId = stores.storeIdFor(userId);
         Reservation reservation = reservations.findWithDetailsById(reservationId)
-                .filter(r -> r.getOwner().getId().equals(ownerId))
+                .filter(r -> r.getStore().getId().equals(storeId))
                 .orElseThrow(() -> new NotFoundException("Reservation not found"));
         if (reservation.getStatus() != ReservationStatus.RESERVED) {
             throw new ConflictException("This reservation is already " + reservation.getStatus().name().toLowerCase());
@@ -231,6 +239,25 @@ public class ReservationService {
         }
         reservation.complete(now);
         return ReservationResponse.forOwner(reservation);
+    }
+
+    private static List<Release> releasesOf(List<Reservation> ended) {
+        List<Release> releases = new ArrayList<>();
+        for (Reservation reservation : ended) {
+            reservation.getItems().forEach(line ->
+                    releases.add(new Release(line.getItem().getId(), line.getQuantity(), reservation.getId())));
+        }
+        // fixed order again, to avoid deadlocks with checkouts
+        releases.sort(Comparator.comparing(Release::itemId));
+        return releases;
+    }
+
+    private void restock(List<Release> releases, Instant now, UUID actorId) {
+        for (Release r : releases) {
+            items.restock(r.itemId(), r.quantity(), now);
+            events.record(r.itemId(), StockEventType.RELEASED, r.quantity(), r.reservationId(), actorId);
+            items.markAvailableIfRestocked(r.itemId(), ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT);
+        }
     }
 
     private String reservationLimitMessage(long active, long adding) {
