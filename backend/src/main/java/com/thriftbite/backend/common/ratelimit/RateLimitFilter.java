@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
@@ -40,9 +42,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final List<Rule> RULES = List.of(
             new Rule("login", "POST", Pattern.compile("/api/auth/login"), RateLimitProperties::loginPerWindow),
             new Rule("register", "POST", Pattern.compile("/api/auth/register"), RateLimitProperties::registerPerWindow),
+            new Rule("demo-login", "POST", Pattern.compile("/api/demo/login"), RateLimitProperties::loginPerWindow),
             new Rule("checkout", "POST", Pattern.compile("/api/checkout"), RateLimitProperties::checkoutPerWindow),
             new Rule("claim-code", "POST", Pattern.compile("/api/owner/reservations/[^/]+/complete"),
                     RateLimitProperties::claimCodePerWindow));
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
     private final RateLimitProperties properties;
     private final Clock clock = Clock.systemUTC();
@@ -62,6 +67,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         Rule rule = RULES.stream().filter(r -> r.matches(request)).findFirst().orElseThrow();
         String key = rule.name() + "|" + clientAddress(request);
+        // Turn on with LOGGING_LEVEL_COM_THRIFTBITE_BACKEND_COMMON_RATELIMIT=DEBUG to check, once
+        // deployed, that the address is the visitor's own and not the host's proxy.
+        log.debug("Rate limit key {} (remote {}, {}: {})", key, request.getRemoteAddr(),
+                properties.clientIpHeader(), properties.clientIpHeader().isBlank() ? "-" : request.getHeader(properties.clientIpHeader()));
         Duration retryAfter = counter.hit(key, rule.limit().applyAsInt(properties), properties.window(), clock.instant());
         if (retryAfter == null) {
             chain.doFilter(request, response);

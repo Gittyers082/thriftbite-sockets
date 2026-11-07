@@ -6,6 +6,15 @@ spring:
   # In production, set SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME and
   # SPRING_DATASOURCE_PASSWORD as environment variables (see .env.example).
 
+  datasource:
+    hikari:
+      # Small pool that empties when idle. Neon's free database sleeps after 5 minutes
+      # without queries; an idle pool with keepalive pings would keep it awake all month.
+      maximum-pool-size: 5
+      minimum-idle: 0
+      idle-timeout: 60000          # ms (Hikari takes plain milliseconds)
+      keepalive-time: 0
+
   jpa:
     open-in-view: false          # keep database access inside services, not views
     hibernate:
@@ -20,12 +29,19 @@ spring:
 
 server:
   port: ${PORT:8080}             # Render and similar hosts provide PORT
+  shutdown: graceful             # finish in-flight requests when Render redeploys
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+  endpoint:
+    health:
+      # /actuator/health/liveness answers without touching the database, so Render's
+      # health checks and uptime pings don't keep Neon awake.
+      probes:
+        enabled: true
 
 app:
   jwt:
@@ -41,7 +57,7 @@ app:
     password: ${APP_ADMIN_PASSWORD:}
   expiry:
     # How often ExpiryJob expires old food and missed pickups (ISO-8601 durations)
-    interval: PT5M
+    interval: ${APP_EXPIRY_INTERVAL:PT5M}
     initial-delay: PT1M
     # It also runs before requests that touch stock, at most this often, so a host
     # that put the app to sleep doesn't leave missed pickups holding food.
@@ -52,6 +68,11 @@ app:
     # Wrong claim codes before code entry for that reservation pauses, and for how long.
     max-code-attempts: 5
     code-lock: PT15M
+  demo:
+    # One-tap Buyer / Store owner / Admin accounts with sample Baguio data, for the
+    # public demo. WARNING: a reset deletes every account except the bootstrap admin.
+    enabled: ${APP_DEMO_ENABLED:false}
+    max-age: PT6H
   rate-limit:
     enabled: ${APP_RATE_LIMIT_ENABLED:true}
     # Header the host's proxy puts the real client address in (set when deployed).

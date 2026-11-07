@@ -35,7 +35,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/*").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // only exist when app.demo.enabled is true (404 otherwise)
+                        .requestMatchers(HttpMethod.GET, "/api/demo").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/demo/login").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/cart/**", "/api/checkout", "/api/reservations/**").hasRole("CONSUMER")
