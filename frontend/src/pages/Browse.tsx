@@ -1,152 +1,163 @@
-import { useState } from 'react'
-import { Shell } from '../components/Shell'
-import { Tabs } from '../components/Tabs'
-import { PickupWindows } from '../components/Timeline'
-import { areas, cart, dealTotals, deals, NOW, type Kind } from '../data/sample'
-import { clock, peso, percentOff, plural, untilLabel } from '../lib/format'
-import { href } from '../lib/route'
+import { useCallback, useState, type FormEvent } from 'react'
+import { api } from '../api/client'
+import type { CartResponse, ItemResponse } from '../api/types'
+import thryxFull from '../assets/thryx-full.png'
+import { DealSkeletons, Empty, ProblemPanel } from '../components/States'
+import { messageOf } from '../lib/errors'
+import { useAuth } from '../lib/auth-context'
+import { peso, plural, untilLabel, windowOf } from '../lib/format'
+import { href, navigate, paths } from '../lib/route'
+import { gap } from '../lib/style'
+import { useLoad, useNow } from '../lib/useLoad'
 
-type TabId = Kind | 'all'
-
-const tabItems: { id: TabId; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'bakery', label: 'Bakery' },
-  { id: 'meals', label: 'Meals' },
-  { id: 'snacks', label: 'Snacks and drinks' },
-]
+type Sort = 'closing' | 'discount'
 
 export function Browse() {
-  const [tab, setTab] = useState<TabId>('all')
-  const [area, setArea] = useState('all')
+  const { user } = useAuth()
+  const isBuyer = user?.role === 'CONSUMER'
+  const now = useNow()
+  const [typed, setTyped] = useState('')
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<Sort>('closing')
+  const [cart, setCart] = useState<CartResponse | null>(null)
+  const [adding, setAdding] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
 
-  // Sold-out deals drop off the list; the API only returns food that is still for sale.
-  const rows = deals
-    .filter((d) => d.left > 0)
-    .filter((d) => tab === 'all' || d.kind === tab)
-    .filter((d) => area === 'all' || d.area === area)
-    .sort((a, b) => a.pickupEnd - b.pickupEnd)
+  const deals = useLoad(useCallback(() => api.browse(query), [query]))
+  const loadedCart = useLoad(useCallback(() => (isBuyer ? api.cart() : Promise.resolve(null)), [isBuyer]))
+  const currentCart = cart ?? loadedCart.data ?? null
+  const inCart = new Map(currentCart?.lines.map((line) => [line.itemId, line.quantity]) ?? [])
 
-  const inCart = new Set(cart.map((l) => l.dealId))
-  const cartTotal = cart.filter((l) => !l.soldOut).reduce((s, l) => s + l.price * l.qty, 0)
-  const cartStores = new Set(cart.map((l) => l.store)).size
+  const items = [...(deals.data?.content ?? [])].sort((a, b) =>
+    sort === 'discount' ? b.discountPercent - a.discountPercent : a.pickupEnd.localeCompare(b.pickupEnd))
 
-  // One window per store, from the deals shown.
-  const windows = [...new Map(deals.map((d) => [d.store, { label: d.store.replace(' Carinderia', ''), from: d.pickupStart, to: d.pickupEnd }])).values()]
-  const firstClose = [...deals].sort((a, b) => a.pickupEnd - b.pickupEnd)[0]
+  const search = (e: FormEvent) => {
+    e.preventDefault()
+    setQuery(typed.trim())
+  }
+
+  const add = async (item: ItemResponse) => {
+    if (!user) return navigate(paths.login)
+    setAdding(item.id)
+    setProblem(null)
+    try {
+      setCart(await api.setCartQuantity(item.id, (inCart.get(item.id) ?? 0) + 1))
+    } catch (error) {
+      setProblem(messageOf(error))
+    } finally {
+      setAdding(null)
+    }
+  }
+
+  const cartCount = currentCart?.lines.length ?? 0
+  const stores = new Set(currentCart?.lines.map((line) => line.storeId)).size
 
   return (
-    <Shell area="buyer" current="/" counts={{ '/cart': String(cart.length) }}>
-      <div className="page-head">
-        <div className="titles">
-          <h1 className="title">Today's surplus</h1>
-          <p className="subline">
-            {dealTotals.all} deals from 9 Baguio stores, each at a portion of its usual price. Reserve now, pick up tonight, pay at the counter.
+    <div className="stack" style={gap(28)}>
+      <section className="card" style={{ background: 'var(--teal)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+        <div className="stack" style={gap(18, { padding: '40px 40px 44px', maxWidth: 680 })}>
+          <h1 className="wide" style={{ fontSize: 'clamp(30px, 5vw, 56px)', lineHeight: 1.02, letterSpacing: -1.5 }}>
+            Tonight’s surplus, saved before closing.
+          </h1>
+          <p style={{ fontSize: 18, lineHeight: '28px', maxWidth: 520 }}>
+            End-of-day food from Baguio bakeries and carinderias, at a portion of the usual price.
+            Reserve it now and pick it up tonight.
           </p>
+          <form role="search" className="row" onSubmit={search} style={{ maxWidth: 560 }}>
+            <label htmlFor="q" className="sr">Search food or a store</label>
+            <input id="q" className="input grow" type="search" placeholder="Pandesal, adobo, a store…"
+              value={typed} onChange={(e) => setTyped(e.target.value)} style={{ boxShadow: '4px 4px 0 var(--ink)' }} />
+            <button type="submit" className="btn lime" style={{ boxShadow: '4px 4px 0 var(--ink)' }}>Search</button>
+          </form>
         </div>
-        <p className="stamp">Updated {clock(NOW)}</p>
+        <img src={thryxFull} alt="" width={300} height={294} className="hide-phone"
+          style={{ position: 'absolute', right: 24, bottom: -36, width: 300, height: 'auto' }} />
+      </section>
+
+      <div className="spread" style={{ flexWrap: 'wrap' }}>
+        <p className="muted" aria-live="polite">
+          {deals.data && (query
+            ? `${plural(deals.data.totalElements, 'deal')} for “${query}”`
+            : `${plural(deals.data.totalElements, 'deal')} you can still pick up tonight`)}
+        </p>
+        <div className="row">
+          <label htmlFor="sort" style={{ fontWeight: 600 }}>Sort</label>
+          <select id="sort" className="input" style={{ width: 200, height: 40 }} value={sort}
+            onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="closing">Closing soonest</option>
+            <option value="discount">Biggest discount</option>
+          </select>
+        </div>
       </div>
 
-      <div className="with-rail">
-        <section aria-label="Deals" className="stack" style={{ gap: 16, minWidth: 0 }}>
-          <Tabs label="Kind of food" selected={tab} onSelect={setTab}
-            items={tabItems.map((t) => ({ ...t, count: dealTotals[t.id] }))} />
+      {problem && <p role="alert" className="err">{problem}</p>}
 
-          <div className="page-head" style={{ alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label htmlFor="area" className="small muted">Area</label>
-              <select id="area" className="select" value={area} onChange={(e) => setArea(e.target.value)}>
-                <option value="all">All of Baguio</option>
-                {areas.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            <p className="small muted">Showing {rows.length} of {dealTotals[tab]} · pickup closing soonest first</p>
-          </div>
-
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Food</th>
-                <th scope="col">Pick up</th>
-                <th scope="col" className="num">Left</th>
-                <th scope="col" className="num">Price</th>
-                <th scope="col"><span className="sr-only">Add to cart</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => {
-                const closingSoon = d.pickupEnd - NOW < 2
+      {deals.error ? <ProblemPanel error={deals.error} onRetry={deals.reload} />
+        : !deals.data ? <DealSkeletons />
+        : items.length === 0 ? (
+          query ? (
+            <Empty title={`Nothing matches “${query}” right now`}
+              action={<button type="button" className="btn" onClick={() => { setTyped(''); setQuery('') }}>Show all deals</button>}>
+              Try a shorter word, like “bread” or a store’s name.
+            </Empty>
+          ) : (
+            <Empty title="Tonight’s food is all spoken for."
+              action={<a className="btn" href={href(paths.reservations)}>See your reservations</a>}>
+              Every pickup window has closed. Stores usually post between 3:00 and 4:00 PM, so check back tomorrow afternoon.
+            </Empty>
+          )
+        ) : (
+          <>
+            <h2 className="sr">Deals, {sort === 'closing' ? 'pickup closing soonest first' : 'biggest discount first'}</h2>
+            <div className="deals">
+              {items.map((item) => {
+                const qty = inCart.get(item.id)
+                const closingSoon = new Date(item.pickupEnd).getTime() - now < 2 * 3600_000
                 return (
-                  <tr key={d.id}>
-                    <td>
-                      <div className="food">
-                        <div className="thumb" aria-hidden="true">Photo</div>
-                        <div className="stack">
-                          <span className="name">{d.name}</span>
-                          <span className="small muted">{d.store} · {d.area}</span>
-                        </div>
+                  <article key={item.id} className="card deal">
+                    <div className="photo">
+                      <span>Photo</span>
+                      <span className="tag lime tilt">{item.discountPercent}% off</span>
+                    </div>
+                    <div className="deal-body">
+                      <div>
+                        <h3>{item.name}</h3>
+                        <p className="muted small">{item.storeName}</p>
                       </div>
-                    </td>
-                    <td>
-                      <div className="stack">
-                        <span>{clock(d.pickupStart)}–{clock(d.pickupEnd)}</span>
-                        <span className={closingSoon ? 'small soon' : 'small muted'}>closes in {untilLabel(NOW, d.pickupEnd)}</span>
+                      <p className="price">
+                        <strong className="wide num">{peso(item.price)}</strong>
+                        <s className="muted num small">{peso(item.originalPrice)}</s>
+                      </p>
+                      <div className="wrap-row" style={gap(6)}>
+                        <span className={`tag ${closingSoon ? 'orange' : 'cream'}`}>Closes in {untilLabel(item.pickupEnd, now)}</span>
+                        <span className="tag">{item.quantity} left</span>
                       </div>
-                    </td>
-                    <td className="num">{d.left}</td>
-                    <td className="num">
-                      <div className="stack end">
-                        <span className="price">{peso(d.price)}</span>
-                        <span className="small muted"><s>{peso(d.usual)}</s> <span className="off">{percentOff(d.price, d.usual)}% off</span></span>
-                      </div>
-                    </td>
-                    <td className="end" style={{ width: 104 }}>
-                      {inCart.has(d.id)
-                        ? <span className="small" style={{ color: 'var(--teal)', fontWeight: 600, whiteSpace: 'nowrap' }}>In your cart</span>
-                        : <button type="button" className="btn-ghost" aria-label={`Add ${d.name} to cart`}>Add</button>}
-                    </td>
-                  </tr>
+                      <p className="muted small">Pick up {windowOf(item.pickupStart, item.pickupEnd)}</p>
+                      {user && !isBuyer ? null : qty ? (
+                        <a className="btn teal sm" href={href(paths.cart)}>In your cart ({qty})</a>
+                      ) : (
+                        <button type="button" className="btn sm" onClick={() => add(item)}
+                          disabled={adding === item.id} aria-label={`Add ${item.name} to cart`}>
+                          {adding === item.id ? 'Adding…' : user ? 'Add to cart' : 'Log in to reserve'}
+                        </button>
+                      )}
+                    </div>
+                  </article>
                 )
               })}
-              {rows.length === 0 && (
-                <tr><td colSpan={5} className="muted">Nothing here right now. Try another area.</td></tr>
-              )}
-            </tbody>
-          </table>
-          <button type="button" className="btn-ghost" style={{ alignSelf: 'flex-start' }}>Show more</button>
-        </section>
+            </div>
+          </>
+        )}
 
-        <aside className="stack" style={{ gap: 16 }}>
-          <section className="card" aria-labelledby="cart-h">
-            <div className="card-head">
-              <h2 id="cart-h" className="card-title">Your cart</h2>
-              <span className="small muted">{plural(cart.length, 'item')} · {plural(cartStores, 'store')}</span>
-            </div>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {cart.map((l) => (
-                <li key={l.dealId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                  <span className={l.soldOut ? 'muted' : undefined}>{l.qty} × {l.name}</span>
-                  {l.soldOut
-                    ? <span className="small soon">Sold out</span>
-                    : <span className="num">{peso(l.price * l.qty)}</span>}
-                </li>
-              ))}
-            </ul>
-            <div className="card-head" style={{ borderTop: '1px solid var(--rule)', paddingTop: 12 }}>
-              <span className="muted">Pay at pickup</span>
-              <span className="num" style={{ fontSize: 20, fontWeight: 700 }}>{peso(cartTotal)}</span>
-            </div>
-            <a className="btn-primary" href={href('/cart')}>Review and reserve</a>
-          </section>
-
-          <section className="card" aria-labelledby="win-h">
-            <div className="stack" style={{ gap: 2 }}>
-              <h2 id="win-h" className="card-title">Pickup windows tonight</h2>
-              <p className="small muted">{firstClose.store} closes first, at {clock(firstClose.pickupEnd)}.</p>
-            </div>
-            <PickupWindows rows={windows} now={NOW} start={15} end={21} />
-          </section>
-        </aside>
-      </div>
-    </Shell>
+      {cartCount > 0 && (
+        <div style={{ position: 'sticky', bottom: 16, zIndex: 5 }} className="cart-bar">
+          <div className="card spread" style={{ background: 'var(--ink)', color: '#fff', boxShadow: '5px 5px 0 var(--teal)', padding: '12px 16px 12px 22px' }}>
+            <p><strong>{plural(cartCount, 'item')} from {plural(stores, 'store')}.</strong>{' '}
+              <span style={{ color: '#CDE3E2' }}>Pay {peso(currentCart?.total ?? 0)} at pickup.</span></p>
+            <a className="btn lime sm" href={href(paths.cart)} style={{ boxShadow: '2px 2px 0 #fff' }}>Review cart</a>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

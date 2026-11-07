@@ -1,69 +1,80 @@
-import { useState } from 'react'
-import thryxFull from '../assets/thryx-full.png'
-import { Shell } from '../components/Shell'
-import { pendingOwners, tints } from '../data/sample'
+import { useCallback, useState } from 'react'
+import { api } from '../api/client'
+import type { UserResponse } from '../api/types'
+import { Empty, Loading, ProblemPanel } from '../components/States'
+import { messageOf } from '../lib/errors'
 import { plural } from '../lib/format'
+import { gap } from '../lib/style'
+import { useLoad } from '../lib/useLoad'
 
+/** New stores wait here until an admin lets them in. */
 export function Admin() {
-  const [approved, setApproved] = useState<string[]>([])
+  const loaded = useLoad(useCallback(() => api.pendingOwners(), []))
+  const [approved, setApproved] = useState<UserResponse[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
 
-  // Draft: local only. Wire to POST /api/admin/users/{id}/approve.
-  const pending = pendingOwners.filter((o) => !approved.includes(o.username))
-  const last = approved[approved.length - 1]
+  if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
+  if (!loaded.data) return <Loading label="Loading stores waiting for approval…" />
+
+  const waiting = loaded.data.filter((u) => !approved.some((a) => a.id === u.id))
+
+  const approve = async (user: UserResponse) => {
+    setProblem(null)
+    setBusy(user.id)
+    try {
+      const done = await api.approve(user.id)
+      setApproved((list) => [done, ...list])
+    } catch (error) {
+      setProblem(messageOf(error))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
-    <Shell area="admin" current="/admin" counts={{ '/admin': String(pending.length) }}>
-      <div className="titles stack" style={{ gap: 4 }}>
-        <h1 className="title">Store approvals</h1>
-        <p className="subline">
-          {pending.length === 0
-            ? 'Every store has been reviewed.'
-            : `${plural(pending.length, 'store is', 'stores are')} waiting. The oldest signed up ${pending[0].when.toLowerCase()}.`}
-        </p>
+    <div className="stack" style={gap(24, { maxWidth: 820 })}>
+      <div className="page-head">
+        <div className="stack" style={gap(6)}>
+          <h1 className="wide">Store approvals</h1>
+          <p className="muted">{waiting.length === 0 ? 'No stores waiting' : `${plural(waiting.length, 'store')} waiting`}</p>
+        </div>
       </div>
+      <p className="panel cream" style={{ padding: '16px 20px' }}>
+        Before approving, check that the store is real: look it up, or call the number on its storefront. Approved stores can post food right away.
+      </p>
+      {problem && <p role="alert" className="err">{problem}</p>}
 
-      <div className="with-rail">
-        <section aria-label="Stores waiting for approval" style={{ minWidth: 0 }}>
-          {pending.length > 0 ? (
-            <table className="table">
-              <thead>
-                <tr><th scope="col">Store account</th><th scope="col">Signed up</th><th scope="col"><span className="sr-only">Approve</span></th></tr>
-              </thead>
-              <tbody>
-                {pending.map((o, i) => (
-                  <tr key={o.username}>
-                    <td>
-                      <div className="food">
-                        <span className="avatar lg" aria-hidden="true" style={{ background: tints[i % tints.length].bg, color: tints[i % tints.length].ink }}>
-                          {o.username.charAt(0).toUpperCase()}
-                        </span>
-                        <span style={{ fontWeight: 600 }}>{o.username}</span>
-                      </div>
-                    </td>
-                    <td><div className="stack"><span className="num">{o.signedUp}</span><span className="small muted">{o.when}</span></div></td>
-                    <td className="end">
-                      <button type="button" className="btn-ghost md" aria-label={`Approve ${o.username}`}
-                        onClick={() => setApproved((a) => [...a, o.username])}>Approve</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="empty">
-              <img src={thryxFull} alt="Thryx, the ThriftBite mascot, holding a burger" />
-              <p style={{ fontWeight: 600, fontSize: 15 }}>No stores waiting. New sign-ups show up here.</p>
+      {waiting.length === 0 ? (
+        <Empty title="All caught up">New store sign-ups will show up here.</Empty>
+      ) : (
+        <section className="card">
+          {waiting.map((user, i) => (
+            <div key={user.id} className="card-row spread" style={{ borderTop: i === 0 ? 0 : undefined, padding: '14px 20px' }}>
+              <div className="row" style={gap(12)}>
+                <span className="avatar" aria-hidden="true" style={{ background: 'var(--orange)' }}>{user.username.charAt(0)}</span>
+                <div><strong>{user.username}</strong><p className="hint">Store owner</p></div>
+              </div>
+              <button type="button" className="btn sm lime" disabled={busy === user.id} onClick={() => approve(user)}>
+                {busy === user.id ? 'Approving…' : 'Approve'}
+              </button>
             </div>
-          )}
-          {last && <p role="status" className="pill good" style={{ marginTop: 16, height: 32, padding: '0 14px', fontSize: 14 }}>Approved {last}. They can log in now.</p>}
+          ))}
         </section>
+      )}
 
-        <aside className="panel" aria-labelledby="why-h" style={{ gap: 10, padding: 20 }}>
-          <h2 id="why-h" className="card-title">Before you approve</h2>
-          <p style={{ color: 'var(--ink-2)' }}>Approved owners can log in, list food and take reservations right away. Buyers don't need approval.</p>
-          <p style={{ color: 'var(--ink-2)' }}>Check that the account belongs to a real store in Baguio, for example by calling the number on its storefront.</p>
-        </aside>
-      </div>
-    </Shell>
+      {approved.length > 0 && (
+        <section className="stack" style={gap(10)}>
+          <h2 className="wide" style={{ fontSize: 20 }}>Approved just now</h2>
+          <ul className="card" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {approved.map((user) => (
+              <li key={user.id} className="card-row spread" style={{ padding: '12px 20px' }}>
+                <strong>{user.username}</strong><span className="tag teal">Approved</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
   )
 }

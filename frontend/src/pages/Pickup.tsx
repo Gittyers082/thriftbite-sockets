@@ -1,52 +1,52 @@
+import { useCallback } from 'react'
+import { api } from '../api/client'
 import thryxFull from '../assets/thryx-full.png'
-import { Icon } from '../components/Icon'
-import { activeReservation as r } from '../data/sample'
-import { peso } from '../lib/format'
-import { href } from '../lib/route'
+import { Loading, ProblemPanel } from '../components/States'
+import { peso, spacedCode, timeOf } from '../lib/format'
+import { href, paths } from '../lib/route'
+import { gap } from '../lib/style'
+import { useLoad } from '../lib/useLoad'
 
-/** Full-screen claim code for showing at the counter, sized for a phone. */
-export function Pickup() {
-  const total = r.lines.reduce((s, l) => s + l.total, 0)
-  const code = `${r.claimCode.slice(0, 3)} ${r.claimCode.slice(3)}`
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto' }}>
-      <div style={{ height: 48, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
-        <a href={href('/reservations')} aria-label="Back to reservations"
-          style={{ width: 44, height: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink)' }}>
-          <Icon name="back" size={20} />
-        </a>
-        <span style={{ fontSize: 16, fontWeight: 600 }}>Claim code</span>
+/** The screen the buyer shows at the counter: big code, what to pay. */
+export function Pickup({ reservationId }: { reservationId: string }) {
+  const loaded = useLoad(useCallback(() => api.myReservations(), []))
+  if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
+  if (!loaded.data) return <Loading />
+
+  const r = loaded.data.find((x) => x.id === reservationId)
+  if (!r) {
+    return (
+      <div className="stack">
+        <p>This reservation isn’t in your account.</p>
+        <a className="btn" href={href(paths.reservations)} style={{ alignSelf: 'flex-start' }}>Your reservations</a>
       </div>
+    )
+  }
 
-      <main className="sheet" style={{ flex: 1, margin: '0 8px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <img src={thryxFull} alt="Thryx, the ThriftBite mascot, holding a burger" width={88} style={{ height: 'auto' }} />
-          <div>
-            <h1 style={{ fontSize: 20, lineHeight: '26px', fontWeight: 700 }}>{r.store}</h1>
-            <p className="small muted">{r.area}, Baguio</p>
-          </div>
+  return (
+    <div className="stack" style={gap(0, { maxWidth: 420, margin: '0 auto', alignItems: 'stretch' })}>
+      <a href={href(paths.reservations)} className="small" style={{ fontWeight: 600, marginBottom: 12 }}>Back to reservations</a>
+      <img src={thryxFull} alt="" width={150} height={147} style={{ width: 150, alignSelf: 'center', marginBottom: -26, position: 'relative', zIndex: 1 }} />
+      <div className="card">
+        <div className="stack" style={gap(8, { background: r.status === 'RESERVED' ? 'var(--lime)' : 'var(--glow)', borderBottom: '2px dashed var(--ink)', padding: '28px 16px 20px', alignItems: 'center' })}>
+          <span style={{ fontWeight: 700 }}>{r.status === 'RESERVED' ? 'Show this at the counter' : 'This reservation is closed'}</span>
+          <span className="wide num ticket-code" aria-label={`Claim code ${r.claimCode?.split('').join(' ')}`}>
+            {r.claimCode && spacedCode(r.claimCode)}
+          </span>
+          {r.status === 'RESERVED' && <span className="tag orange">Due by {timeOf(r.pickupDeadline)}</span>}
         </div>
-
-        <div className="card" style={{ alignItems: 'center', gap: 8, padding: '24px 16px' }}>
-          <span className="small muted">Show this at the counter</span>
-          <span className="num" style={{ fontSize: 44, lineHeight: '48px', fontWeight: 700, letterSpacing: 5 }}>{code}</span>
-          <span className="pill warn">Pick up by {r.pickupBy}</span>
-        </div>
-
-        <section aria-labelledby="order-h" className="stack" style={{ gap: 8 }}>
-          <h2 id="order-h" style={{ fontSize: 14, fontWeight: 600 }}>Your order</h2>
-          {r.lines.map((l) => (
-            <p key={l.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <span>{l.qty} × {l.name}</span><span className="num">{peso(l.total)}</span>
-            </p>
+        <div className="stack" style={gap(10, { padding: '18px 20px' })}>
+          <h1 className="wide" style={{ fontSize: 20, lineHeight: '24px' }}>{r.storeName}</h1>
+          <p className="muted small">{r.items[0]?.pickupLocation}</p>
+          {r.items.map((line) => (
+            <p key={line.itemId} className="spread num"><span>{line.quantity} × {line.name}</span><span>{peso(line.unitPrice * line.quantity)}</span></p>
           ))}
-          <p style={{ display: 'flex', justifyContent: 'space-between', gap: 12, borderTop: '1px solid var(--rule)', paddingTop: 10, fontWeight: 700 }}>
-            <span>Pay at the counter</span><span className="num">{peso(total)}</span>
+          <p className="spread num" style={{ borderTop: '2px solid var(--ink)', paddingTop: 10, fontWeight: 800 }}>
+            <span>Pay at the counter</span><span>{peso(r.total)}</span>
           </p>
-        </section>
-
-        <p className="small muted" style={{ marginTop: 'auto' }}>Cash or GCash. If you can't make it, cancel so someone else can have it.</p>
-      </main>
+        </div>
+      </div>
+      <p className="small muted" style={{ marginTop: 16 }}>Cash or GCash. If you can’t make it, cancel so someone else can have it.</p>
     </div>
   )
 }

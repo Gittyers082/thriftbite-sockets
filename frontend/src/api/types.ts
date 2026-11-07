@@ -7,6 +7,7 @@
 export type Role = 'ADMIN' | 'OWNER' | 'CONSUMER'
 export type ItemStatus = 'AVAILABLE' | 'SOLD_OUT' | 'EXPIRED' | 'REMOVED'
 export type ReservationStatus = 'RESERVED' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED'
+export type Weekday = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
 
 export interface UserResponse {
   id: string
@@ -25,6 +26,7 @@ export interface RegisterRequest {
   username: string
   password: string
   accountType: 'OWNER' | 'CONSUMER'
+  storeName?: string
 }
 
 export interface ItemResponse {
@@ -40,8 +42,9 @@ export interface ItemResponse {
   pickupLocation: string
   pickupStart: string
   pickupEnd: string
-  ownerId: string
-  ownerName: string
+  storeId: string
+  storeName: string
+  storeSlug: string
   version: number
 }
 
@@ -75,7 +78,8 @@ export interface CartLine {
   lineTotal: number
   quantityLeft: number
   available: boolean
-  ownerName: string
+  storeId: string
+  storeName: string
   pickupLocation: string
 }
 
@@ -95,20 +99,75 @@ export interface ReservationLine {
 export interface ReservationResponse {
   id: string
   status: ReservationStatus
-  /** Only sent to the buyer; null for the owner. */
+  /** Only sent to the buyer; null for the store. */
   claimCode: string | null
   pickupDeadline: string
   total: number
   buyerName: string
-  ownerName: string
+  storeId: string
+  storeName: string
   createdAt: string
   completedAt: string | null
+  cancelledAt: string | null
+  expiredAt: string | null
   items: ReservationLine[]
 }
+
+export type DemoRole = 'BUYER' | 'OWNER' | 'ADMIN'
+
+export interface DemoInfo {
+  accounts: { as: DemoRole; username: string; description: string }[]
+  seededAt: string
+  resetsAt: string
+}
+
+export interface SalesStats {
+  storeName: string
+  from: string
+  to: string
+  timeZone: string
+  totals: {
+    moneyMade: number
+    moneyMadePreviousPeriod: number
+    moneyMadeChange: number | null
+    unitsSold: number
+    pickups: number
+    discountGiven: number
+    averageDiscount: number | null
+    unitsListed: number
+    unitsSoldOfListed: number
+    unitsLeftOver: number
+    sellThrough: number | null
+    completedReservations: number
+    missedPickups: number
+    cancelledReservations: number
+    missedRate: number | null
+    missedValue: number
+  }
+  days: { date: string; weekday: Weekday; moneyMade: number; unitsSold: number; pickups: number }[]
+  leftoverByWeekday: { weekday: Weekday; days: number; unitsLeftOver: number; averagePerDay: number | null }[]
+  pickupsByHour: { hour: number; pickups: number }[]
+  items: {
+    name: string
+    listed: number
+    sold: number
+    leftOver: number
+    sellThrough: number | null
+    moneyMade: number
+    daysListed: number
+    daysSoldOut: number
+    /** "16:39:00", Manila time */
+    usualSellOutTime: string | null
+  }[]
+}
+
+/** Codes the API puts on errors the screens handle differently. */
+export type ProblemCode = 'rate_limited' | 'login_locked' | 'claim_code_locked' | 'account_not_approved'
 
 /** RFC 9457 problem details, the shape of every API error. */
 export interface ProblemDetail {
   status: number
   title?: string
   detail?: string
+  code?: ProblemCode
 }

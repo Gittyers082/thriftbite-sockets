@@ -1,21 +1,22 @@
 const paths = {
-  bag: <><path d="M4 7h16l-1.5 12.5a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5z" /><path d="M9 10V6a3 3 0 0 1 6 0v4" /></>,
-  cart: <><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.5L22 7H6" /></>,
-  ticket: <><path d="M4 8a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v8a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2z" /><path d="M10 12h4" /></>,
-  home: <path d="M4 10l8-6 8 6v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" />,
-  plus: <path d="M12 5v14M5 12h14" />,
-  store: <><path d="M4 10l1.5-5h13L20 10" /><path d="M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /><path d="M9 20v-5h6v5" /></>,
-  search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
+  browse: <><rect x="4" y="4" width="6.5" height="6.5" /><rect x="13.5" y="4" width="6.5" height="6.5" /><rect x="4" y="13.5" width="6.5" height="6.5" /><rect x="13.5" y="13.5" width="6.5" height="6.5" /></>,
+  cart: <><path d="M3 4h3l2 11h11l2-8H7" /><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /></>,
+  ticket: <><path d="M4 5h16v4a3 3 0 0 0 0 6v4H4v-4a3 3 0 0 0 0-6z" /><path d="M14 5v14" strokeDasharray="2 2" /></>,
+  person: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></>,
+  today: <><rect x="4" y="5" width="16" height="15" /><path d="M4 10h16M9 3v4M15 3v4" /></>,
+  sales: <><path d="M4 20h16" /><rect x="5" y="12" width="3" height="8" /><rect x="10.5" y="6" width="3" height="14" /><rect x="16" y="9" width="3" height="11" /></>,
+  plus: <><rect x="4" y="4" width="16" height="16" /><path d="M12 8v8M8 12h8" /></>,
+  store: <><path d="M4 9l2-5h12l2 5" /><path d="M4 9h16v2a3 3 0 0 1-5 1 3 3 0 0 1-6 0 3 3 0 0 1-5-1z" /><path d="M5 13v7h14v-7M10 20v-4h4v4" /></>,
   back: <path d="M15 18l-6-6 6-6" />,
 }
 
 export type IconName = keyof typeof paths
 
-/** Outline icons at 1.6px stroke. Decorative: the label next to them carries the meaning. */
-export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+/** Square-capped outline icons. Decorative: the label next to them carries the meaning. */
+export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
   return (
     <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      stroke="currentColor" strokeWidth={2.2} strokeLinecap="square">
       {paths[name]}
     </svg>
   )

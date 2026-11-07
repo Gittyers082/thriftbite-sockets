@@ -32,12 +32,15 @@ $env:APP_ADMIN_USERNAME = "admin"
 $env:APP_ADMIN_PASSWORD = "<at-least-12-characters>"
 ```
 
+To get the one-tap demo accounts (and a month of sample sales) locally, also set `$env:APP_DEMO_ENABLED = "true"` before starting the API. This wipes the local database's other accounts on startup.
+
 **Frontend**
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                   # http://localhost:5173, talks to the API on :8080
 ```
+The API address comes from `VITE_API_URL` (see [`frontend/.env.example`](frontend/.env.example)); without it the app uses `http://localhost:8080`.
 
 **Tests**
 ```bash
