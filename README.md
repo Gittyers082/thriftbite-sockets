@@ -65,6 +65,7 @@ cd backend
 | POST | `/api/reservations/{id}/cancel` | consumer | Cancel before pickup (stock goes back on sale) |
 | GET | `/api/owner/reservations` | owner | Pickups waiting at your store |
 | POST | `/api/owner/reservations/{id}/complete` | owner | Hand over the food after checking the buyer's claim code |
+| GET | `/api/owner/stats?from=&to=` | owner | Sales for your store: money made, share of listed food sold, leftovers by weekday, pickups by hour, per-item results (Manila days; default the last 7 full days) |
 | GET | `/api/admin/owners/pending` | admin | Owners waiting for approval |
 | POST | `/api/admin/users/{id}/approve` | admin | Approve an owner |
 | GET | `/api/demo` | anyone | Demo accounts and when the demo data next resets (demo deployments only) |

@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -130,6 +131,11 @@ public class DemoData implements ApplicationRunner {
         User buyer = user(BUYER, Role.CONSUMER, true, unusableHash);
         User mara = user("mara.l", Role.CONSUMER, true, unusableHash);
         User jun = user("jun.d", Role.CONSUMER, true, unusableHash);
+        // regulars who show up in Sunrise Bakery's past sales
+        List<User> regulars = List.of(mara, jun,
+                user("kat.r", Role.CONSUMER, true, unusableHash),
+                user("paolo.g", Role.CONSUMER, true, unusableHash),
+                user("bea.s", Role.CONSUMER, true, unusableHash));
         user(ADMIN, Role.ADMIN, true, unusableHash);
 
         User rosa = user(OWNER, Role.OWNER, true, unusableHash);
@@ -194,6 +200,10 @@ public class DemoData implements ApplicationRunner {
                 INSERT INTO item_events (item_id, store_id, type, qty_delta, qty_after, occurred_at)
                 VALUES (?, ?, 'SOLD_OUT', 0, 0, ?)
                 """, cheeseRolls.getId(), sunrise.getId(), Timestamp.from(now.minus(Duration.ofMinutes(35))));
+
+        // 30 days of past sales at Sunrise Bakery, for the Sales screen
+        new DemoSalesHistory(jdbc, MANILA).seed(sunrise.getId(), rosa.getId(),
+                regulars.stream().map(User::getId).toList(), now.atZone(MANILA).toLocalDate(), 30, sunriseAt);
 
         // The demo buyer's history: one picked up, one cancelled, one missed (it counts toward the 2-strike rule).
         Reservation yesterday = reservation(buyer, lola.store(), "201944", now, adobo, 1, null, 0);

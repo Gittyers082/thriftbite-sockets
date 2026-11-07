@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -49,6 +50,17 @@ class DemoDataTest extends ApiTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(4)))
                 .andExpect(jsonPath("$[*].claimCode", hasItem(DemoData.BUYER_CLAIM_CODE)));
+    }
+
+    @Test
+    void theDemoStoreHasAMonthOfSalesHistory() throws Exception {
+        String token = demoLogin("OWNER");
+        mvc.perform(get("/api/owner/stats").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.storeName").value("Sunrise Bakery"))
+                .andExpect(jsonPath("$.days", hasSize(7)))
+                .andExpect(jsonPath("$.totals.pickups", greaterThan(0)))
+                .andExpect(jsonPath("$.items", hasSize(5)));
     }
 
     @Test
