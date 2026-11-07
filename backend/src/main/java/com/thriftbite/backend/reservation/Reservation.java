@@ -15,8 +15,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +64,18 @@ public class Reservation {
     @Column(name = "completed_at")
     private Instant completedAt;
 
+    /** Wrong claim codes entered since the last lock (or since it was created). */
+    @Column(name = "failed_code_attempts", nullable = false)
+    private int failedCodeAttempts;
+
+    /** While set and in the future, the owner can't enter a code for this reservation. */
+    @Column(name = "code_locked_until")
+    private Instant codeLockedUntil;
+
+    /** Optimistic lock: two writers (e.g. the expiry job and a cancel) can't both win. */
+    @Version
+    private long version;
+
     @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ReservationItem> items = new ArrayList<>();
 
@@ -92,6 +106,29 @@ public class Reservation {
     public void complete(Instant when) {
         this.status = ReservationStatus.COMPLETED;
         this.completedAt = when;
+        this.failedCodeAttempts = 0;
+        this.codeLockedUntil = null;
+    }
+
+    /** True while code entry is paused after too many wrong codes. */
+    public boolean isCodeLocked(Instant now) {
+        return codeLockedUntil != null && now.isBefore(codeLockedUntil);
+    }
+
+    /**
+     * Counts a wrong claim code. The {@code maxAttempts}-th wrong code in a row
+     * pauses code entry for {@code lockFor} and starts the count again.
+     *
+     * @return how many tries are left before the next pause (0 if it just paused)
+     */
+    public int recordWrongCode(Instant now, int maxAttempts, Duration lockFor) {
+        failedCodeAttempts++;
+        if (failedCodeAttempts >= maxAttempts) {
+            failedCodeAttempts = 0;
+            codeLockedUntil = now.plus(lockFor);
+            return 0;
+        }
+        return maxAttempts - failedCodeAttempts;
     }
 
     public void cancel() {
@@ -112,5 +149,6 @@ public class Reservation {
     public BigDecimal getTotal() { return total; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getCompletedAt() { return completedAt; }
+    public Instant getCodeLockedUntil() { return codeLockedUntil; }
     public List<ReservationItem> getItems() { return Collections.unmodifiableList(items); }
 }

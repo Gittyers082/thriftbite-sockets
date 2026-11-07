@@ -12,12 +12,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -156,6 +158,96 @@ class CheckoutApiTest extends ApiTestSupport {
         String owner = tokenFor(Role.OWNER);
         mvc.perform(get("/api/cart").header("Authorization", bearer(owner))).andExpect(status().isForbidden());
         checkout(owner).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aBuyerCanHoldAtMostTwoReservations() throws Exception {
+        String buyer = tokenFor(Role.CONSUMER);
+        String first = createItem(tokenFor(Role.OWNER), "Ensaymada", 5);
+        String second = createItem(tokenFor(Role.OWNER), "Pancit canton", 5);
+        String third = createItem(tokenFor(Role.OWNER), "Taho", 5);
+
+        addToCart(buyer, first, 1).andExpect(status().isOk());
+        String firstId = JsonPath.read(checkout(buyer).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$[0].id");
+        addToCart(buyer, second, 1).andExpect(status().isOk());
+        checkout(buyer).andExpect(status().isCreated());
+
+        addToCart(buyer, third, 1).andExpect(status().isOk());
+        checkout(buyer)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail", containsString("2 reservations at a time")));
+        assertThat(stockOf(third)).isEqualTo(5);   // nothing was taken
+
+        // cancelling one frees a slot
+        mvc.perform(post("/api/reservations/{id}/cancel", firstId).header("Authorization", bearer(buyer)))
+                .andExpect(status().isOk());
+        checkout(buyer).andExpect(status().isCreated());
+        assertThat(stockOf(third)).isEqualTo(4);
+    }
+
+    @Test
+    void aCartWithFoodFromTooManyStoresIsRefusedWhole() throws Exception {
+        String buyer = tokenFor(Role.CONSUMER);
+        String a = createItem(tokenFor(Role.OWNER), "Bread A", 3);
+        String b = createItem(tokenFor(Role.OWNER), "Bread B", 3);
+        String c = createItem(tokenFor(Role.OWNER), "Bread C", 3);
+        addToCart(buyer, a, 1).andExpect(status().isOk());
+        addToCart(buyer, b, 1).andExpect(status().isOk());
+        addToCart(buyer, c, 1).andExpect(status().isOk());
+
+        checkout(buyer)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail", containsString("food from 3 stores")));
+        assertThat(stockOf(a)).isEqualTo(3);
+        mvc.perform(get("/api/cart").header("Authorization", bearer(buyer)))
+                .andExpect(jsonPath("$.lines", hasSize(3)));
+    }
+
+    @Test
+    void fiveWrongClaimCodesPauseCodeEntry() throws Exception {
+        String owner = tokenFor(Role.OWNER);
+        String buyer = tokenFor(Role.CONSUMER);
+        String item = createItem(owner, "Kutsinta", 3);
+        addToCart(buyer, item, 1).andExpect(status().isOk());
+        String body = checkout(buyer).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String reservationId = JsonPath.read(body, "$[0].id");
+        String code = JsonPath.read(body, "$[0].claimCode");
+        String wrongCode = code.equals("000000") ? "111111" : "000000";
+
+        // each wrong try is saved, even though the request fails
+        for (int left = 4; left >= 1; left--) {
+            complete(owner, reservationId, wrongCode)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail", containsString(left + (left == 1 ? " try" : " tries") + " left")));
+        }
+        complete(owner, reservationId, wrongCode)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("paused for 15 minutes")));
+
+        // now even the right code waits
+        complete(owner, reservationId, code)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"))
+                .andExpect(jsonPath("$.code").value("claim_code_locked"));
+    }
+
+    @Test
+    void aRightCodeAfterSomeWrongOnesStillWorks() throws Exception {
+        String owner = tokenFor(Role.OWNER);
+        String buyer = tokenFor(Role.CONSUMER);
+        String item = createItem(owner, "Biko", 3);
+        addToCart(buyer, item, 1).andExpect(status().isOk());
+        String body = checkout(buyer).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String reservationId = JsonPath.read(body, "$[0].id");
+        String code = JsonPath.read(body, "$[0].claimCode");
+        String wrongCode = code.equals("000000") ? "111111" : "000000";
+
+        complete(owner, reservationId, wrongCode).andExpect(status().isBadRequest());
+        complete(owner, reservationId, wrongCode).andExpect(status().isBadRequest());
+        complete(owner, reservationId, code)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
     }
 
     // --- helpers ---

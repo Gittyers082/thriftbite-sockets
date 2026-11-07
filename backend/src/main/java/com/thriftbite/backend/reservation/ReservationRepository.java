@@ -20,6 +20,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @EntityGraph(attributePaths = {"buyer", "owner", "items", "items.item"})
     Optional<Reservation> findWithDetailsById(UUID id);
 
+    /** How many reservations a buyer is holding right now (status RESERVED). */
+    long countByBuyerIdAndStatus(UUID buyerId, ReservationStatus status);
+
     /** Active reservations whose pickup window has closed. */
     @EntityGraph(attributePaths = {"items", "items.item"})
     List<Reservation> findByStatusAndPickupDeadlineBefore(ReservationStatus status, Instant deadline);

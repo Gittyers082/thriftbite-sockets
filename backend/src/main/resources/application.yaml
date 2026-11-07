@@ -43,3 +43,24 @@ app:
     # How often ExpiryJob expires old food and missed pickups (ISO-8601 durations)
     interval: PT5M
     initial-delay: PT1M
+    # It also runs before requests that touch stock, at most this often, so a host
+    # that put the app to sleep doesn't leave missed pickups holding food.
+    lazy-min-gap: PT30S
+  reservations:
+    # Reserving is free (buyers pay at the counter), so cap how much one buyer can hold.
+    max-active-per-buyer: 2
+    # Wrong claim codes before code entry for that reservation pauses, and for how long.
+    max-code-attempts: 5
+    code-lock: PT15M
+  rate-limit:
+    enabled: ${APP_RATE_LIMIT_ENABLED:true}
+    # Header the host's proxy puts the real client address in (set when deployed).
+    client-ip-header: ${APP_CLIENT_IP_HEADER:}
+    window: PT10M
+    login-per-window: 30
+    register-per-window: 5
+    checkout-per-window: 20
+    claim-code-per-window: 60
+    # Wrong passwords in a row before one username is paused, and for how long.
+    login-failures-before-lock: 5
+    login-lock: PT15M

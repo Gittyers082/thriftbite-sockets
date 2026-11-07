@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -28,6 +29,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
+// Same settings as ApiTestSupport, so both share one app context (and one database container).
+@TestPropertySource(properties = {"app.rate-limit.enabled=false", "app.expiry.lazy-min-gap=PT0S"})
 class AuthFlowTest {
 
     private static final String PASSWORD = "correct-horse-battery";
@@ -105,7 +108,9 @@ class AuthFlowTest {
                 .andExpect(jsonPath("$.approved").value(false))
                 .andReturn().getResponse().getContentAsString(), "$.id");
 
-        login(owner, PASSWORD).andExpect(status().isForbidden());
+        login(owner, PASSWORD)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("account_not_approved"));
 
         String adminToken = loginToken(createAdmin(), PASSWORD);
         mvc.perform(post("/api/admin/users/{id}/approve", ownerId)

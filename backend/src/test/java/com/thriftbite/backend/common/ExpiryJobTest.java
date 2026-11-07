@@ -18,6 +18,9 @@ import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ExpiryJobTest extends ApiTestSupport {
 
@@ -62,6 +65,28 @@ class ExpiryJobTest extends ApiTestSupport {
         Item restocked = items.findById(item.getId()).orElseThrow();
         assertThat(restocked.getQuantity()).isEqualTo(2);
         assertThat(restocked.getStatus()).isEqualTo(ItemStatus.AVAILABLE);
+    }
+
+    /**
+     * A host that sleeps runs no schedule. The first request that looks at
+     * stock releases missed pickups on its own, so the buyer sees real stock.
+     */
+    @Test
+    void browsingReleasesMissedPickupsWithoutWaitingForTheSchedule() throws Exception {
+        User owner = saveUser(Role.OWNER);
+        User buyer = saveUser(Role.CONSUMER);
+        Instant now = Instant.now();
+        Item item = items.save(item(owner, 0, now.plus(Duration.ofHours(5))));
+        Reservation reservation = new Reservation(buyer, owner, "654321", now.minus(Duration.ofMinutes(1)));
+        reservation.addItem(new ReservationItem(item, 3));
+        reservation = reservations.save(reservation);
+
+        mvc.perform(get("/api/items/{id}", item.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantity").value(3))
+                .andExpect(jsonPath("$.status").value("AVAILABLE"));
+        assertThat(reservations.findById(reservation.getId()).orElseThrow().getStatus())
+                .isEqualTo(ReservationStatus.EXPIRED);
     }
 
     private User saveUser(Role role) {

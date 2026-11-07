@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -26,6 +27,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
+@TestPropertySource(properties = {
+        // Every test request comes from the same address, so per-address limits would trip.
+        // RateLimitTest turns them back on.
+        "app.rate-limit.enabled=false",
+        // Release missed pickups on every request, so tests don't depend on timing.
+        "app.expiry.lazy-min-gap=PT0S"
+})
 public abstract class ApiTestSupport {
 
     protected static final String PASSWORD = "correct-horse-battery";

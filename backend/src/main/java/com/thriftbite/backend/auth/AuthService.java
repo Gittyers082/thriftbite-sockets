@@ -7,6 +7,8 @@ import com.thriftbite.backend.auth.dto.UserResponse;
 import com.thriftbite.backend.common.ApiExceptions.AccountNotApprovedException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
+import com.thriftbite.backend.common.ApiExceptions.TooManyRequestsException;
+import com.thriftbite.backend.common.ratelimit.LoginAttempts;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
 import com.thriftbite.backend.user.UserRepository;
@@ -15,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +28,7 @@ public class AuthService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokens;
+    private final LoginAttempts loginAttempts;
 
     /**
      * Compared against when a username doesn't exist, so a failed login takes
@@ -32,10 +36,12 @@ public class AuthService {
      */
     private final String dummyHash;
 
-    public AuthService(UserRepository users, PasswordEncoder passwordEncoder, TokenService tokens) {
+    public AuthService(UserRepository users, PasswordEncoder passwordEncoder, TokenService tokens,
+                       LoginAttempts loginAttempts) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
+        this.loginAttempts = loginAttempts;
         this.dummyHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
@@ -55,13 +61,24 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        Optional<User> found = users.findByUsername(normalize(request.username()));
+        String username = normalize(request.username());
+        // Checked before the password, so a paused username can't keep guessing.
+        Duration wait = loginAttempts.blockedFor(username);
+        if (wait != null) {
+            throw new TooManyRequestsException(
+                    "Too many wrong passwords for this username. Wait a few minutes and try again.",
+                    wait, "login_locked");
+        }
+
+        Optional<User> found = users.findByUsername(username);
         String hash = found.map(User::getPasswordHash).orElse(dummyHash);
         boolean passwordMatches = passwordEncoder.matches(request.password(), hash);
 
         if (found.isEmpty() || !passwordMatches) {
+            loginAttempts.recordFailure(username);
             throw new BadCredentialsException("Invalid username or password");
         }
+        loginAttempts.recordSuccess(username);
         User user = found.get();
         if (!user.isApproved()) {
             throw new AccountNotApprovedException();
