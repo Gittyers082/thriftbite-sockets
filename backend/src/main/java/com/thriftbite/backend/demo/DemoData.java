@@ -229,6 +229,7 @@ public class DemoData implements ApplicationRunner {
 
     private User user(String username, Role role, boolean approved, String passwordHash) {
         User user = new User(username, passwordHash, role);
+        user.markDemo();
         if (approved) {
             user.approve();
         }

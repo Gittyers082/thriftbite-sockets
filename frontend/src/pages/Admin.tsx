@@ -3,12 +3,15 @@ import { api } from '../api/client'
 import type { UserResponse } from '../api/types'
 import { Empty, Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
+import { useAuth } from '../lib/auth-context'
 import { plural } from '../lib/format'
 import { gap } from '../lib/style'
 import { useLoad } from '../lib/useLoad'
 
 /** New stores wait here until an admin lets them in. */
 export function Admin() {
+  const { user } = useAuth()
+  const isDemo = user?.username === 'demo.admin'
   const loaded = useLoad(useCallback(() => api.pendingOwners(), []))
   const [approved, setApproved] = useState<UserResponse[]>([])
   const [busy, setBusy] = useState<string | null>(null)
@@ -40,6 +43,11 @@ export function Admin() {
           <p className="muted">{waiting.length === 0 ? 'No stores waiting' : `${plural(waiting.length, 'store')} waiting`}</p>
         </div>
       </div>
+      {isDemo && (
+        <p className="panel notice dark">
+          You’re the demo admin, so you only see the demo’s sample stores. Real sign-ups need a real admin.
+        </p>
+      )}
       <p className="panel cream" style={{ padding: '16px 20px' }}>
         Before approving, check that the store is real: look it up, or call the number on its storefront. Approved stores can post food right away.
       </p>

@@ -1,6 +1,7 @@
 package com.thriftbite.backend.admin;
 
 import com.thriftbite.backend.auth.dto.UserResponse;
+import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
@@ -27,18 +28,31 @@ public class AdminService {
         this.users = users;
     }
 
+    /**
+     * Stores waiting for approval. The public demo's admin (anyone can log in as it)
+     * only sees the demo's sample stores, never real sign-ups.
+     */
     @Transactional(readOnly = true)
-    public List<UserResponse> pendingOwners() {
-        return users.findByRoleAndApprovedFalseOrderByCreatedAtAsc(Role.OWNER).stream()
-                .map(UserResponse::from)
-                .toList();
+    public List<UserResponse> pendingOwners(UUID adminId) {
+        List<User> pending = actor(adminId).isDemo()
+                ? users.findByRoleAndApprovedFalseAndDemoTrueOrderByCreatedAtAsc(Role.OWNER)
+                : users.findByRoleAndApprovedFalseOrderByCreatedAtAsc(Role.OWNER);
+        return pending.stream().map(UserResponse::from).toList();
     }
 
     @Transactional
-    public UserResponse approve(UUID userId) {
+    public UserResponse approve(UUID adminId, UUID userId) {
         User user = users.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (actor(adminId).isDemo() && !user.isDemo()) {
+            throw new ForbiddenException("The demo admin can only approve the demo's sample stores");
+        }
         user.approve();   // saved automatically when the transaction commits
         return UserResponse.from(user);
+    }
+
+    private User actor(UUID adminId) {
+        return users.findById(adminId)
+                .orElseThrow(() -> new ForbiddenException("Your account no longer exists. Log in again."));
     }
 }

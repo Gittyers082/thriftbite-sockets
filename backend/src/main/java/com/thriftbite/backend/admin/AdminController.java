@@ -1,6 +1,9 @@
 package com.thriftbite.backend.admin;
 
+import com.thriftbite.backend.auth.TokenService;
 import com.thriftbite.backend.auth.dto.UserResponse;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,12 +24,12 @@ public class AdminController {
     }
 
     @GetMapping("/owners/pending")
-    public List<UserResponse> pendingOwners() {
-        return admin.pendingOwners();
+    public List<UserResponse> pendingOwners(@AuthenticationPrincipal Jwt jwt) {
+        return admin.pendingOwners(TokenService.userId(jwt));
     }
 
     @PostMapping("/users/{userId}/approve")
-    public UserResponse approve(@PathVariable UUID userId) {
-        return admin.approve(userId);
+    public UserResponse approve(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID userId) {
+        return admin.approve(TokenService.userId(jwt), userId);
     }
 }

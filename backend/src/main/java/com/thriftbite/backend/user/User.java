@@ -34,6 +34,10 @@ public class User {
     @Column(nullable = false)
     private boolean approved;
 
+    /** Created by the public demo (see DemoData). */
+    @Column(nullable = false)
+    private boolean demo;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -58,6 +62,10 @@ public class User {
         this.approved = true;
     }
 
+    public void markDemo() {
+        this.demo = true;
+    }
+
     public void changeUsername(String newUsername) {
         this.username = newUsername;
     }
@@ -71,5 +79,6 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public Role getRole() { return role; }
     public boolean isApproved() { return approved; }
+    public boolean isDemo() { return demo; }
     public Instant getCreatedAt() { return createdAt; }
 }
