@@ -33,12 +33,21 @@ public class CurrentAccountConverter implements Converter<Jwt, AbstractAuthentic
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
-        User user = users.findById(accountId(jwt))
-                .filter(User::isApproved)
-                .orElseThrow(() -> new InvalidBearerTokenException("This login is no longer valid. Log in again."));
+        User user = accountFor(jwt);
         // "ROLE_OWNER" etc., which is what hasRole('OWNER') checks for
         return new JwtAuthenticationToken(jwt,
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())), jwt.getSubject());
+    }
+
+    /**
+     * The account a verified token belongs to, as it is in the database now.
+     *
+     * @throws InvalidBearerTokenException if the account is gone or isn't approved
+     */
+    public User accountFor(Jwt jwt) {
+        return users.findById(accountId(jwt))
+                .filter(User::isApproved)
+                .orElseThrow(() -> new InvalidBearerTokenException("This login is no longer valid. Log in again."));
     }
 
     private static UUID accountId(Jwt jwt) {

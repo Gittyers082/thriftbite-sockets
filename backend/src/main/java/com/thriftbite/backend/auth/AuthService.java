@@ -1,5 +1,7 @@
 package com.thriftbite.backend.auth;
 
+import com.thriftbite.backend.live.LiveChange.ApprovalsChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.auth.dto.LoginRequest;
 import com.thriftbite.backend.auth.dto.LoginResponse;
 import com.thriftbite.backend.auth.dto.RegisterRequest;
@@ -31,6 +33,7 @@ public class AuthService {
     private final TokenService tokens;
     private final LoginAttempts loginAttempts;
     private final StoreService stores;
+    private final ApplicationEventPublisher live;
 
     /**
      * Compared against when a username doesn't exist, so a failed login takes
@@ -39,12 +42,13 @@ public class AuthService {
     private final String dummyHash;
 
     public AuthService(UserRepository users, PasswordEncoder passwordEncoder, TokenService tokens,
-                       LoginAttempts loginAttempts, StoreService stores) {
+                       LoginAttempts loginAttempts, StoreService stores, ApplicationEventPublisher live) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
         this.loginAttempts = loginAttempts;
         this.stores = stores;
+        this.live = live;
         this.dummyHash = passwordEncoder.encode("timing-equalizer-not-a-real-password");
     }
 
@@ -62,6 +66,7 @@ public class AuthService {
         if (role == Role.OWNER) {
             // The store exists from sign-up, but it can't list food until an admin approves the owner.
             stores.createForOwner(user, request.storeName());
+            live.publishEvent(new ApprovalsChanged());   // admins' approval screens reload
         }
         return UserResponse.from(user);
     }

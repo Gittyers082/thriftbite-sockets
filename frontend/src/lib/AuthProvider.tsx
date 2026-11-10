@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, getToken, setToken, setUnauthorizedHandler } from '../api/client'
+import { liveLoginChanged } from './live'
 import type { DemoRole, LoginResponse, RegisterRequest, UserResponse } from '../api/types'
 import { AuthContext, type Auth } from './auth-context'
 
@@ -19,6 +20,7 @@ function savedUser(): UserResponse | null {
 
 function save(response: LoginResponse | null): void {
   setToken(response?.token ?? null)
+  liveLoginChanged()
   try {
     if (response) {
       localStorage.setItem(USER_KEY, JSON.stringify(response.user))

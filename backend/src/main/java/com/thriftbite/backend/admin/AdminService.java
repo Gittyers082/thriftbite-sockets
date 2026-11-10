@@ -1,5 +1,7 @@
 package com.thriftbite.backend.admin;
 
+import com.thriftbite.backend.live.LiveChange.ApprovalsChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.auth.dto.UserResponse;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
@@ -23,9 +25,11 @@ import java.util.UUID;
 public class AdminService {
 
     private final UserRepository users;
+    private final ApplicationEventPublisher live;
 
-    public AdminService(UserRepository users) {
+    public AdminService(UserRepository users, ApplicationEventPublisher live) {
         this.users = users;
+        this.live = live;
     }
 
     /**
@@ -48,6 +52,7 @@ public class AdminService {
             throw new ForbiddenException("The demo admin can only approve the demo's sample stores");
         }
         user.approve();   // saved automatically when the transaction commits
+        live.publishEvent(new ApprovalsChanged());   // other admins' screens reload
         return UserResponse.from(user);
     }
 

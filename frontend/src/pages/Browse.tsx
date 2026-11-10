@@ -2,12 +2,15 @@ import { useCallback, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { CartResponse, ItemResponse } from '../api/types'
 import thryxFull from '../assets/thryx-full.png'
+import { LiveBadge } from '../components/LiveBadge'
 import { DealSkeletons, Empty, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { useAuth } from '../lib/auth-context'
 import { peso, plural, untilLabel, windowOf } from '../lib/format'
 import { href, navigate, paths } from '../lib/route'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLive, useLiveReload } from '../lib/useLive'
 import { useLoad, useNow } from '../lib/useLoad'
 
 type Sort = 'closing' | 'discount'
@@ -24,6 +27,26 @@ export function Browse() {
   const [problem, setProblem] = useState<string | null>(null)
 
   const deals = useLoad(useCallback(() => api.browse(query), [query]))
+  /** Counts live changes per listing; a new number replays the little flash on its "left" tag. */
+  const [changed, setChanged] = useState<Record<string, number>>({})
+
+  // Live: when someone reserves a listing on screen, its count changes in place.
+  const shown = deals.data?.content
+  const mutateDeals = deals.mutate
+  useLive(useCallback((message: LiveMessage) => {
+    if (message.type !== 'item' || !shown?.some((item) => item.id === message.id)) return
+    mutateDeals((page) => ({
+      ...page,
+      content: page.content.map((item) =>
+        item.id === message.id ? { ...item, quantity: message.quantity, status: message.status } : item),
+    }))
+    setChanged((counts) => ({ ...counts, [message.id]: (counts[message.id] ?? 0) + 1 }))
+  }, [shown, mutateDeals]))
+  // A listing that isn't on screen came on sale (new, or freed by a cancellation), or many changed: load the list again.
+  useLiveReload(deals.reload, useCallback((message: LiveMessage) =>
+    message.type === 'deals'
+    || (message.type === 'item' && message.status === 'AVAILABLE' && !shown?.some((item) => item.id === message.id)),
+  [shown]))
   const loadedCart = useLoad(useCallback(() => (isBuyer ? api.cart() : Promise.resolve(null)), [isBuyer]))
   const currentCart = cart ?? loadedCart.data ?? null
   const inCart = new Map(currentCart?.lines.map((line) => [line.itemId, line.quantity]) ?? [])
@@ -81,6 +104,7 @@ export function Browse() {
             : `${plural(deals.data.totalElements, 'deal')} you can still pick up tonight`)}
         </p>
         <div className="row">
+          <LiveBadge what="Stock counts" />
           <label htmlFor="sort" style={{ fontWeight: 600 }}>Sort</label>
           <select id="sort" className="input" style={{ width: 200, height: 40 }} value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}>
@@ -113,8 +137,13 @@ export function Browse() {
               {items.map((item) => {
                 const qty = inCart.get(item.id)
                 const closingSoon = new Date(item.pickupEnd).getTime() - now < 2 * 3600_000
+                // A live update can take a listing off sale while it's on screen. It stays put
+                // (nothing jumps under a finger about to tap) and goes at the next reload.
+                const soldOut = item.status === 'SOLD_OUT' || (item.status === 'AVAILABLE' && item.quantity === 0)
+                const gone = soldOut || item.status !== 'AVAILABLE'
+                const flashes = changed[item.id] ?? 0
                 return (
-                  <article key={item.id} className="card deal">
+                  <article key={item.id} className={`card deal${gone ? ' gone' : ''}`}>
                     <div className="photo">
                       <span>Photo</span>
                       <span className="tag lime tilt">{item.discountPercent}% off</span>
@@ -130,10 +159,14 @@ export function Browse() {
                       </p>
                       <div className="wrap-row" style={gap(6)}>
                         <span className={`tag ${closingSoon ? 'orange' : 'cream'}`}>Closes in {untilLabel(item.pickupEnd, now)}</span>
-                        <span className="tag">{item.quantity} left</span>
+                        <span key={flashes} className={`tag${gone ? ' orange' : ''}${flashes ? ' flash' : ''}`}>
+                          {soldOut ? 'Sold out' : gone ? 'No longer on sale' : `${item.quantity} left`}
+                        </span>
                       </div>
                       <p className="muted small">Pick up {windowOf(item.pickupStart, item.pickupEnd)}</p>
-                      {user && !isBuyer ? null : qty ? (
+                      {user && !isBuyer ? null : gone ? (
+                        <button type="button" className="btn sm" disabled>{soldOut ? 'Sold out' : 'Not on sale'}</button>
+                      ) : qty ? (
                         <a className="btn teal sm" href={href(paths.cart)}>In your cart ({qty})</a>
                       ) : (
                         <button type="button" className="btn sm" onClick={() => add(item)}

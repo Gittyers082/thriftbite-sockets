@@ -1,12 +1,20 @@
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
 import { ApiError, api } from '../api/client'
 import type { ItemRequest, ItemResponse, ItemStatus, ReservationResponse } from '../api/types'
+import { LiveBadge } from '../components/LiveBadge'
 import { Empty, Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { dayOf, peso, plural, timeOf, untilLabel, windowOf } from '../lib/format'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLiveReload } from '../lib/useLive'
 import { useLoad, useNow } from '../lib/useLoad'
+
+/** A buyer reserved or cancelled, a pickup time passed, or another device at the counter changed something. */
+const storeChanged = (message: LiveMessage) => message.type === 'store'
+/** A pickup card says "New" for this long after the buyer reserved. */
+const NEW_FOR_MS = 2 * 60_000
 
 const statusTag: Record<ItemStatus, [string, string]> = {
   AVAILABLE: ['On sale', 'lime'],
@@ -36,6 +44,7 @@ function requestFrom(item: ItemResponse, changes: Partial<ItemRequest> = {}): It
 export function OwnerToday() {
   const now = useNow()
   const loaded = useLoad(useCallback(() => Promise.all([api.ownerPickups(), api.myItems()]), []))
+  useLiveReload(loaded.reload, storeChanged)
   const [handedOver, setHandedOver] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
@@ -103,7 +112,10 @@ export function OwnerToday() {
       {problem && <p role="alert" className="err">{problem}</p>}
 
       <section className="stack" style={gap(14)}>
-        <h2 className="wide" style={{ fontSize: 24 }}>Pickups</h2>
+        <div className="row">
+          <h2 className="wide" style={{ fontSize: 24 }}>Pickups</h2>
+          <LiveBadge what="New reservations" />
+        </div>
         {pickups.length === 0 ? (
           <p className="panel cream" style={{ padding: '18px 20px' }}>
             No one is waiting right now. New reservations show up here, each with a code the buyer reads out at your counter.
@@ -191,6 +203,7 @@ function PickupCard({ reservation: r, now, onDone }: { reservation: ReservationR
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const late = new Date(r.pickupDeadline).getTime() - now < 15 * 60_000
+  const isNew = now - new Date(r.createdAt).getTime() < NEW_FOR_MS
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -216,7 +229,10 @@ function PickupCard({ reservation: r, now, onDone }: { reservation: ReservationR
           <h3 style={{ fontSize: 18, fontWeight: 800 }}>{r.buyerName}</h3>
           <p className="small">Reserved {timeOf(r.createdAt)}</p>
         </div>
-        <span className="tag">Due {timeOf(r.pickupDeadline)}</span>
+        <span className="row" style={gap(6)}>
+          {isNew && <span className="tag lime flash">New</span>}
+          <span className="tag">Due {timeOf(r.pickupDeadline)}</span>
+        </span>
       </div>
       <div className="stack" style={gap(8, { padding: '16px 20px' })}>
         {r.items.map((line) => (

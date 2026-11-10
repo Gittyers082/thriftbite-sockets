@@ -1,5 +1,7 @@
 package com.thriftbite.backend.demo;
 
+import com.thriftbite.backend.live.LiveChange.DealsChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.item.Item;
 import com.thriftbite.backend.item.ItemRepository;
 import com.thriftbite.backend.reservation.Reservation;
@@ -63,6 +65,7 @@ public class DemoData implements ApplicationRunner {
     private final StoreService stores;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
+    private final ApplicationEventPublisher live;
     private final String keepAdmin;
     private final Duration maxAge;
 
@@ -70,7 +73,7 @@ public class DemoData implements ApplicationRunner {
 
     public DemoData(UserRepository users, ItemRepository items, ReservationRepository reservations,
                     PasswordEncoder passwordEncoder, StoreService stores, JdbcTemplate jdbc,
-                    PlatformTransactionManager transactions,
+                    PlatformTransactionManager transactions, ApplicationEventPublisher live,
                     @Value("${app.admin.username:}") String bootstrapAdmin,
                     @Value("${app.demo.max-age:PT6H}") Duration maxAge) {
         this.users = users;
@@ -80,6 +83,7 @@ public class DemoData implements ApplicationRunner {
         this.stores = stores;
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(transactions);
+        this.live = live;
         this.keepAdmin = bootstrapAdmin == null ? "" : bootstrapAdmin.trim().toLowerCase(Locale.ROOT);
         this.maxAge = maxAge;
     }
@@ -108,6 +112,7 @@ public class DemoData implements ApplicationRunner {
         tx.executeWithoutResult(status -> {
             wipe();
             seed(Instant.now());
+            live.publishEvent(new DealsChanged());   // open browse pages reload once the new data is in
         });
         seededAt = Instant.now();
         log.info("Demo data reset; next reset after {}", seededAt.plus(maxAge));

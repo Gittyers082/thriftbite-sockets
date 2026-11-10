@@ -16,6 +16,7 @@ import java.time.Duration;
  * @param registerPerWindow     sign-ups from one address per window
  * @param checkoutPerWindow     checkouts from one address per window
  * @param claimCodePerWindow    claim codes entered from one address per window (a busy counter enters a lot)
+ * @param liveConnectsPerWindow live (WebSocket) connections opened from one address per window
  * @param generalPerWindow      all API calls from one address per window; far above what a person uses
  * @param window                length of the window for the limits above
  * @param loginFailuresBeforeLock wrong passwords in a row before one username is paused
@@ -29,6 +30,7 @@ public record RateLimitProperties(
         @DefaultValue("5") int registerPerWindow,
         @DefaultValue("20") int checkoutPerWindow,
         @DefaultValue("60") int claimCodePerWindow,
+        @DefaultValue("300") int liveConnectsPerWindow,
         @DefaultValue("1200") int generalPerWindow,
         @DefaultValue("PT10M") Duration window,
         @DefaultValue("5") int loginFailuresBeforeLock,

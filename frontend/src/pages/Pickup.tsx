@@ -5,11 +5,17 @@ import { Loading, ProblemPanel } from '../components/States'
 import { peso, spacedCode, timeOf } from '../lib/format'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLiveReload } from '../lib/useLive'
 import { useLoad } from '../lib/useLoad'
+
+/** The store handed the food over, or the pickup time passed. */
+const reservationsChanged = (message: LiveMessage) => message.type === 'reservations'
 
 /** The screen the buyer shows at the counter: big code, what to pay. */
 export function Pickup({ reservationId }: { reservationId: string }) {
   const loaded = useLoad(useCallback(() => api.myReservations(), []))
+  useLiveReload(loaded.reload, reservationsChanged)
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading />
 

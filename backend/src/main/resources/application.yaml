@@ -83,8 +83,17 @@ app:
     register-per-window: 5
     checkout-per-window: 20
     claim-code-per-window: 60
+    # Live (WebSocket) connections opened from one address.
+    live-connects-per-window: 300
     # Every API call from one address, on top of the limits above (2 a second, sustained).
     general-per-window: 1200
     # Wrong passwords in a row before one username is paused, and for how long.
     login-failures-before-lock: 5
     login-lock: PT15M
+  live:
+    # Open live connections at once: in total, and from one address (a classroom on one
+    # Wi-Fi shares an address, so this is roomy).
+    max-connections: 500
+    max-connections-per-address: 60
+    # Pings keep proxies from closing quiet connections.
+    ping-interval: PT25S

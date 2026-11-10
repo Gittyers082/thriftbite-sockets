@@ -37,6 +37,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/demo").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/demo/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        // The live connection opens without a login (browsers can't put a token on a
+                        // WebSocket request); a login is sent as its first message. See LiveSocketHandler.
+                        .requestMatchers(HttpMethod.GET, "/ws").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/cart/**", "/api/checkout", "/api/reservations/**").hasRole("CONSUMER")

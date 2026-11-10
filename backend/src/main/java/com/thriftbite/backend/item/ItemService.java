@@ -1,5 +1,8 @@
 package com.thriftbite.backend.item;
 
+import com.thriftbite.backend.live.LiveChange.StoreChanged;
+import com.thriftbite.backend.live.LiveChange.ItemChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
@@ -29,14 +32,16 @@ public class ItemService {
     private final StoreRepository storeRepository;
     private final StoreService stores;
     private final StockEvents events;
+    private final ApplicationEventPublisher live;
 
     public ItemService(ItemRepository items, UserRepository users, StoreRepository storeRepository,
-                       StoreService stores, StockEvents events) {
+                       StoreService stores, StockEvents events, ApplicationEventPublisher live) {
         this.items = items;
         this.users = users;
         this.storeRepository = storeRepository;
         this.stores = stores;
         this.events = events;
+        this.live = live;
     }
 
     // ---- public ----
@@ -78,6 +83,7 @@ public class ItemService {
                 request.expiresAt(), request.pickupLocation().trim(),
                 request.pickupStart(), request.pickupEnd()));
         events.record(item.getId(), StockEventType.LISTED, item.getQuantity(), null, userId);
+        tellOpenScreens(item.getId(), storeId);
         return ItemResponse.from(item);
     }
 
@@ -101,6 +107,7 @@ public class ItemService {
         if (item.getQuantity() != before) {
             events.record(item.getId(), StockEventType.ADJUSTED, item.getQuantity() - before, null, userId);
         }
+        tellOpenScreens(item.getId(), item.getStore().getId());
         return ItemResponse.from(item);
     }
 
@@ -110,9 +117,16 @@ public class ItemService {
         item.remove();
         items.flush();
         events.record(item.getId(), StockEventType.REMOVED, 0, null, userId);
+        tellOpenScreens(item.getId(), item.getStore().getId());
     }
 
     // ---- helpers ----
+
+    /** Sent after this transaction commits: browse pages update the listing, and the store's other screens reload. */
+    private void tellOpenScreens(UUID itemId, UUID storeId) {
+        live.publishEvent(new ItemChanged(itemId));
+        live.publishEvent(new StoreChanged(storeId));
+    }
 
     private Item findVisible(UUID itemId) {
         return items.findWithStoreById(itemId)

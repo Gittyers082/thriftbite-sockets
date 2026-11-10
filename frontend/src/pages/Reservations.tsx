@@ -6,7 +6,12 @@ import { messageOf } from '../lib/errors'
 import { dayOf, peso, spacedCode, timeOf } from '../lib/format'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLiveReload } from '../lib/useLive'
 import { useLoad } from '../lib/useLoad'
+
+/** The store handed the food over, or the pickup time passed. */
+const reservationsChanged = (message: LiveMessage) => message.type === 'reservations'
 
 const statusLabel: Record<ReservationStatus, [string, string]> = {
   RESERVED: ['Ready for pickup', 'lime'],
@@ -17,6 +22,7 @@ const statusLabel: Record<ReservationStatus, [string, string]> = {
 
 export function Reservations() {
   const loaded = useLoad(useCallback(() => api.myReservations(), []))
+  useLiveReload(loaded.reload, reservationsChanged)
   const [tab, setTab] = useState<'active' | 'past'>('active')
   const [confirming, setConfirming] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)

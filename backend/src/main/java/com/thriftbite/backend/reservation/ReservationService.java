@@ -1,5 +1,9 @@
 package com.thriftbite.backend.reservation;
 
+import com.thriftbite.backend.live.LiveChange.ReservationsChanged;
+import com.thriftbite.backend.live.LiveChange.StoreChanged;
+import com.thriftbite.backend.live.LiveChange.ItemChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.cart.CartItem;
 import com.thriftbite.backend.cart.CartItemRepository;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
@@ -47,6 +51,7 @@ public class ReservationService {
     private final StoreRepository storeRepository;
     private final StoreService stores;
     private final StockEvents events;
+    private final ApplicationEventPublisher live;
     private final int maxActivePerBuyer;
     private final int maxCodeAttempts;
     private final Duration codeLock;
@@ -54,6 +59,7 @@ public class ReservationService {
     public ReservationService(CartItemRepository cart, ItemRepository items,
                               ReservationRepository reservations, UserRepository users,
                               StoreRepository storeRepository, StoreService stores, StockEvents events,
+                              ApplicationEventPublisher live,
                               @Value("${app.reservations.max-active-per-buyer:2}") int maxActivePerBuyer,
                               @Value("${app.reservations.max-code-attempts:5}") int maxCodeAttempts,
                               @Value("${app.reservations.code-lock:PT15M}") Duration codeLock) {
@@ -64,6 +70,7 @@ public class ReservationService {
         this.storeRepository = storeRepository;
         this.stores = stores;
         this.events = events;
+        this.live = live;
         this.maxActivePerBuyer = maxActivePerBuyer;
         this.maxCodeAttempts = maxCodeAttempts;
         this.codeLock = codeLock;
@@ -130,6 +137,8 @@ public class ReservationService {
             if (items.markSoldOutIfEmpty(w.itemId(), ItemStatus.SOLD_OUT) == 1) {
                 events.record(w.itemId(), StockEventType.SOLD_OUT, 0, reservationId, buyerId);
             }
+            // Open screens hear about these only if this whole checkout commits.
+            live.publishEvent(new ItemChanged(w.itemId()));
         }
 
         // The stock updates cleared the session, so load fresh copies to build reservations.
@@ -153,6 +162,8 @@ public class ReservationService {
         }
 
         cart.deleteAllForUser(buyerId);
+        reservationIdByStore.keySet().forEach(storeId -> live.publishEvent(new StoreChanged(storeId)));
+        live.publishEvent(new ReservationsChanged(buyerId));
         return created.stream().map(ReservationResponse::forBuyer).toList();
     }
 
@@ -176,6 +187,8 @@ public class ReservationService {
         Instant now = Instant.now();
         reservation.cancel(now);
         ReservationResponse response = ReservationResponse.forBuyer(reservation);
+        live.publishEvent(new StoreChanged(reservation.getStore().getId()));
+        live.publishEvent(new ReservationsChanged(buyerId));
         // The first restock flushes the cancellation above before clearing the session.
         restock(releasesOf(List.of(reservation)), now, buyerId);
         return response;
@@ -190,7 +203,11 @@ public class ReservationService {
     @Transactional
     public int expireMissedPickups(Instant now) {
         List<Reservation> missed = reservations.findByStatusAndPickupDeadlineBefore(ReservationStatus.RESERVED, now);
-        missed.forEach(reservation -> reservation.expire(now));
+        missed.forEach(reservation -> {
+            reservation.expire(now);
+            live.publishEvent(new StoreChanged(reservation.getStore().getId()));
+            live.publishEvent(new ReservationsChanged(reservation.getBuyer().getId()));
+        });
         List<Release> releases = releasesOf(missed);
         // The first restock flushes the status changes above before clearing the session.
         restock(releases, now, null);
@@ -238,6 +255,9 @@ public class ReservationService {
                     : "Wrong claim code. " + left + (left == 1 ? " try" : " tries") + " left.");
         }
         reservation.complete(now);
+        // The buyer's ticket flips to "picked up" while they're still at the counter.
+        live.publishEvent(new StoreChanged(storeId));
+        live.publishEvent(new ReservationsChanged(reservation.getBuyer().getId()));
         return ReservationResponse.forOwner(reservation);
     }
 
@@ -257,6 +277,7 @@ public class ReservationService {
             items.restock(r.itemId(), r.quantity(), now);
             events.record(r.itemId(), StockEventType.RELEASED, r.quantity(), r.reservationId(), actorId);
             items.markAvailableIfRestocked(r.itemId(), ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT);
+            live.publishEvent(new ItemChanged(r.itemId()));
         }
     }
 

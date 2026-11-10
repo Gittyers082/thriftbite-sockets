@@ -1,5 +1,7 @@
 package com.thriftbite.backend.item;
 
+import com.thriftbite.backend.live.LiveChange.DealsChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -21,9 +23,11 @@ import java.util.UUID;
 public class StockEvents {
 
     private final JdbcTemplate jdbc;
+    private final ApplicationEventPublisher live;
 
-    public StockEvents(JdbcTemplate jdbc) {
+    public StockEvents(JdbcTemplate jdbc, ApplicationEventPublisher live) {
         this.jdbc = jdbc;
+        this.live = live;
     }
 
     /**
@@ -48,7 +52,7 @@ public class StockEvents {
     @Transactional
     public int expireOldItems(Instant now) {
         Timestamp at = Timestamp.from(now);
-        return jdbc.update("""
+        int expired = jdbc.update("""
                 WITH expired AS (
                     UPDATE items
                        SET status = 'EXPIRED', version = version + 1, updated_at = ?
@@ -58,5 +62,9 @@ public class StockEvents {
                 INSERT INTO item_events (item_id, store_id, type, qty_delta, qty_after, occurred_at)
                 SELECT id, store_id, 'EXPIRED', 0, quantity, ? FROM expired
                 """, at, at, at);
+        if (expired > 0) {
+            live.publishEvent(new DealsChanged());   // browse pages reload once this commits
+        }
+        return expired;
     }
 }

@@ -50,20 +50,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
             new Rule("checkout", "POST", Pattern.compile("/api/checkout"), RateLimitProperties::checkoutPerWindow),
             new Rule("claim-code", "POST", Pattern.compile("/api/owner/reservations/[^/]+/complete"),
                     RateLimitProperties::claimCodePerWindow),
+            // Opening a live connection (each one may also check a login against the database).
+            new Rule("live", "GET", Pattern.compile("/ws"), RateLimitProperties::liveConnectsPerWindow),
             // Every API call counts here too, whatever else it matched.
             new Rule("general", null, Pattern.compile("/api/.*"), RateLimitProperties::generalPerWindow));
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
-    /** The longest IPv6 address in text form is 45 characters. */
-    private static final int MAX_ADDRESS_LENGTH = 45;
-
     private final RateLimitProperties properties;
+    private final ClientAddress clientAddress;
     private final Clock clock = Clock.systemUTC();
     private final FixedWindowCounter counter = new FixedWindowCounter();
 
-    public RateLimitFilter(RateLimitProperties properties) {
+    public RateLimitFilter(RateLimitProperties properties, ClientAddress clientAddress) {
         this.properties = properties;
+        this.clientAddress = clientAddress;
     }
 
     @Override
@@ -74,7 +75,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String address = clientAddress(request);
+        String address = clientAddress.of(request);
         // Turn on with LOGGING_LEVEL_COM_THRIFTBITE_BACKEND_COMMON_RATELIMIT=DEBUG to check, once
         // deployed, that the address is the visitor's own and not the host's proxy.
         log.debug("Rate limit address {} (remote {}, {}: {})", address, request.getRemoteAddr(),
@@ -97,30 +98,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
         writeTooManyRequests(request, response, retryAfter);
-    }
-
-    /**
-     * The visitor's own address. Behind a host's proxy the connection comes from the proxy,
-     * so every visitor would share one address (and one limit) unless the host's header is read.
-     * On Render that header is CF-Connecting-IP: Cloudflare sets it and overwrites anything a
-     * client sends. X-Forwarded-For is no good there, because Render appends to whatever the
-     * client sent, so a client could pick its own "address".
-     */
-    private String clientAddress(HttpServletRequest request) {
-        String header = properties.clientIpHeader();
-        if (!header.isBlank()) {
-            String value = request.getHeader(header);
-            if (value != null && !value.isBlank()) {
-                // For X-Forwarded-For style lists, the last entry is the one our own proxy added.
-                String[] parts = value.split(",");
-                String address = parts[parts.length - 1].trim();
-                // An address is short. Anything longer isn't one, and mustn't become a map key.
-                if (!address.isEmpty() && address.length() <= MAX_ADDRESS_LENGTH) {
-                    return address;
-                }
-            }
-        }
-        return request.getRemoteAddr();
     }
 
     /** Same RFC 9457 shape as every other error, written by hand because this runs outside Spring MVC. */

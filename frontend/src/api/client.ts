@@ -4,7 +4,7 @@ import type {
 } from './types'
 
 /** Where the API lives. Set VITE_API_URL on Vercel; locally it's the Spring Boot default. */
-const BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
+export const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080').replace(/\/$/, '')
 const TOKEN_KEY = 'thriftbite.token'
 
 /** The API answered with an error (4xx/5xx). `detail` is written for people and safe to show. */
@@ -54,7 +54,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
   let res: Response
   try {
-    res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+    res = await fetch(API_BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   } catch {
     throw new NetworkError()
   }

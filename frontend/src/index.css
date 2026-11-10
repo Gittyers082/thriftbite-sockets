@@ -203,6 +203,17 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; }
 }
 @keyframes skp { from { background: var(--sk); } to { background: #eef7f6; } }
 
+/* live updates */
+.live-badge { gap: 6px; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.deal.gone .photo, .deal.gone .price { opacity: .45 }
+@media (prefers-reduced-motion: no-preference) {
+  .flash { animation: flash 1.4s ease-out; }
+  .live-dot { animation: live-dot 2s ease-in-out infinite; }
+}
+@keyframes flash { from { background: var(--orange); transform: scale(1.18); } }
+@keyframes live-dot { 50% { opacity: .25; } }
+
 /* bar charts */
 .chart { position: relative; border-bottom: 2px solid var(--ink); display: flex; align-items: flex-end; gap: var(--bar-gap, 14px); }
 .chart .grid { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--rule); }

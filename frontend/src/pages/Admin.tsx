@@ -6,13 +6,19 @@ import { messageOf } from '../lib/errors'
 import { useAuth } from '../lib/auth-context'
 import { plural } from '../lib/format'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLiveReload } from '../lib/useLive'
 import { useLoad } from '../lib/useLoad'
+
+/** A store signed up, or another admin approved one. */
+const approvalsChanged = (message: LiveMessage) => message.type === 'approvals'
 
 /** New stores wait here until an admin lets them in. */
 export function Admin() {
   const { user } = useAuth()
   const isDemo = user?.username === 'demo.admin'
   const loaded = useLoad(useCallback(() => api.pendingOwners(), []))
+  useLiveReload(loaded.reload, approvalsChanged)
   const [approved, setApproved] = useState<UserResponse[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)

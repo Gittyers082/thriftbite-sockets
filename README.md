@@ -71,10 +71,21 @@ cd backend
 | GET | `/api/owner/stats?from=&to=` | owner | Sales for your store: money made, share of listed food sold, leftovers by weekday, pickups by hour, per-item results (Manila days; default the last 7 full days) |
 | GET | `/api/admin/owners/pending` | admin | Owners waiting for approval |
 | POST | `/api/admin/users/{id}/approve` | admin | Approve an owner |
+| WS | `/ws` | anyone | Live updates (see below); log in by sending the token as the first message |
 | GET | `/api/demo` | anyone | Demo accounts and when the demo data next resets (demo deployments only) |
 | POST | `/api/demo/login` | anyone | Log in as the demo `BUYER`, `OWNER` or `ADMIN` (demo deployments only) |
 
 Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`).
+
+### Live updates
+
+Open screens update on their own over a WebSocket at `/ws`: a stock count drops on every browse page when someone reserves, a new reservation appears on the store's counter screen, and a buyer's ticket flips to "picked up" when the store hands the food over.
+
+- **Sent only after commit.** Services publish a change inside their transaction; it goes out only once that transaction commits (`@TransactionalEventListener`). A checkout that rolls back because something sold out announces nothing.
+- **Messages are hints, not data.** Apart from a listing's public stock count, a message only says which part of the screen is out of date (`store`, `reservations`, `deals`, `approvals`), and the screen reloads it through the normal API. Nothing private travels over the socket, and the app still works when the socket is down.
+- **Logging in.** A connection starts anonymous and hears public stock changes. The frontend then sends `{"type":"auth","token":"..."}` as its first message; the token is checked exactly like on an API call. It isn't put in the URL, because URLs end up in logs.
+- **Staying connected.** The server pings every 25 seconds so proxies keep the connection open. The frontend reconnects with a growing delay, reloads what it may have missed, and lets go of the connection when the tab has been hidden for a minute.
+- **One instance.** Connections are kept in memory. With several instances, changes would have to be passed between them (for example with Redis pub/sub).
 
 ### Limits
 
@@ -84,6 +95,7 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 - **5 wrong claim codes** on one reservation pause code entry for 15 minutes.
 - **5 wrong passwords** in a row pause that username for 15 minutes.
 - Per-address limits on log in, sign-up, checkout and claim-code entry return `429` with `Retry-After`. Every other API call shares a generous per-address limit (1,200 per 10 minutes), so a script can't flood the API.
+- Live connections: 500 at once in total, 60 from one address, and 300 opened per address per 10 minutes.
 
 ### Security notes
 
@@ -92,7 +104,8 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 - **Every lookup is scoped to the caller.** The user id comes from the verified token, never from the request, and a store can only reach its own listings and pickups.
 - **Rate limits use the visitor's own address.** Behind Render that is the `CF-Connecting-IP` header (set in `render.yaml`); `X-Forwarded-For` can be faked there.
 - **The demo admin is boxed in.** Anyone can log in as it, so it only sees and approves the demo's sample stores.
-- **The frontend sends a Content Security Policy** (`frontend/vercel.json`): scripts only from the site itself, API calls only to the site and `*.onrender.com`, and no framing by other sites. If the API moves to another domain, update `connect-src` there.
+- **The frontend sends a Content Security Policy** (`frontend/vercel.json`): scripts only from the site itself, API calls and the live connection only to the site and `*.onrender.com`, and no framing by other sites. If the API moves to another domain, update `connect-src` there.
+- **The live connection** only accepts pages from the frontend's own address (the CORS list), takes one small login message and closes on anything else, and drops browsers that stop reading.
 
 ## Deploy
 
