@@ -38,6 +38,7 @@ public class TokenService {
                 .expiresAt(expiresAt)
                 .subject(user.getId().toString())   // the server trusts this, never a user id sent in a request body
                 .claim("username", user.getUsername())
+                // For clients to read. The server looks the role up itself (CurrentAccountConverter).
                 .claim(ROLES_CLAIM, List.of(user.getRole().name()))
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

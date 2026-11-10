@@ -23,8 +23,10 @@ import java.util.function.ToIntFunction;
 import java.util.regex.Pattern;
 
 /**
- * Per-address limits on the endpoints a script would hammer: log in, sign up,
- * checkout and claim-code entry. Everything else passes straight through.
+ * Per-address limits. The endpoints a script would hammer (log in, sign up,
+ * checkout, claim-code entry) each have a tight limit; every other API call
+ * shares one generous limit, so a script can't run up the free database's
+ * hours or drown out real visitors.
  *
  * Runs after Spring Security's filters, so a 429 still carries CORS headers
  * and the browser can read it.
@@ -33,9 +35,11 @@ import java.util.regex.Pattern;
 @Order(Ordered.LOWEST_PRECEDENCE - 10)
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    /** @param method the HTTP method the rule is for, or null for any */
     private record Rule(String name, String method, Pattern path, ToIntFunction<RateLimitProperties> limit) {
         boolean matches(HttpServletRequest request) {
-            return method.equals(request.getMethod()) && path.matcher(request.getRequestURI()).matches();
+            return (method == null || method.equals(request.getMethod()))
+                    && path.matcher(request.getRequestURI()).matches();
         }
     }
 
@@ -45,9 +49,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
             new Rule("demo-login", "POST", Pattern.compile("/api/demo/login"), RateLimitProperties::loginPerWindow),
             new Rule("checkout", "POST", Pattern.compile("/api/checkout"), RateLimitProperties::checkoutPerWindow),
             new Rule("claim-code", "POST", Pattern.compile("/api/owner/reservations/[^/]+/complete"),
-                    RateLimitProperties::claimCodePerWindow));
+                    RateLimitProperties::claimCodePerWindow),
+            // Every API call counts here too, whatever else it matched.
+            new Rule("general", null, Pattern.compile("/api/.*"), RateLimitProperties::generalPerWindow));
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
+
+    /** The longest IPv6 address in text form is 45 characters. */
+    private static final int MAX_ADDRESS_LENGTH = 45;
 
     private final RateLimitProperties properties;
     private final Clock clock = Clock.systemUTC();
@@ -65,13 +74,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        Rule rule = RULES.stream().filter(r -> r.matches(request)).findFirst().orElseThrow();
-        String key = rule.name() + "|" + clientAddress(request);
+        String address = clientAddress(request);
         // Turn on with LOGGING_LEVEL_COM_THRIFTBITE_BACKEND_COMMON_RATELIMIT=DEBUG to check, once
         // deployed, that the address is the visitor's own and not the host's proxy.
-        log.debug("Rate limit key {} (remote {}, {}: {})", key, request.getRemoteAddr(),
+        log.debug("Rate limit address {} (remote {}, {}: {})", address, request.getRemoteAddr(),
                 properties.clientIpHeader(), properties.clientIpHeader().isBlank() ? "-" : request.getHeader(properties.clientIpHeader()));
-        Duration retryAfter = counter.hit(key, rule.limit().applyAsInt(properties), properties.window(), clock.instant());
+
+        // Count the request against every rule it matches; the longest wait wins.
+        Duration retryAfter = null;
+        for (Rule rule : RULES) {
+            if (!rule.matches(request)) {
+                continue;
+            }
+            Duration wait = counter.hit(rule.name() + "|" + address, rule.limit().applyAsInt(properties),
+                    properties.window(), clock.instant());
+            if (wait != null && (retryAfter == null || wait.compareTo(retryAfter) > 0)) {
+                retryAfter = wait;
+            }
+        }
         if (retryAfter == null) {
             chain.doFilter(request, response);
             return;
@@ -79,6 +99,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         writeTooManyRequests(request, response, retryAfter);
     }
 
+    /**
+     * The visitor's own address. Behind a host's proxy the connection comes from the proxy,
+     * so every visitor would share one address (and one limit) unless the host's header is read.
+     * On Render that header is CF-Connecting-IP: Cloudflare sets it and overwrites anything a
+     * client sends. X-Forwarded-For is no good there, because Render appends to whatever the
+     * client sent, so a client could pick its own "address".
+     */
     private String clientAddress(HttpServletRequest request) {
         String header = properties.clientIpHeader();
         if (!header.isBlank()) {
@@ -86,7 +113,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (value != null && !value.isBlank()) {
                 // For X-Forwarded-For style lists, the last entry is the one our own proxy added.
                 String[] parts = value.split(",");
-                return parts[parts.length - 1].trim();
+                String address = parts[parts.length - 1].trim();
+                // An address is short. Anything longer isn't one, and mustn't become a map key.
+                if (!address.isEmpty() && address.length() <= MAX_ADDRESS_LENGTH) {
+                    return address;
+                }
             }
         }
         return request.getRemoteAddr();
@@ -102,7 +133,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write("""
                 {"type":"about:blank","title":"Too Many Requests","status":429,\
-                "detail":"Too many tries from this device. Wait a few minutes and try again.",\
+                "detail":"Too many requests from this device. Wait a few minutes and try again.",\
                 "instance":"%s","code":"rate_limited"}""".formatted(request.getRequestURI().replace("\"", "")));
     }
 

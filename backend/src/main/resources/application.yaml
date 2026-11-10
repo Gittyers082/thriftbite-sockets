@@ -75,13 +75,16 @@ app:
     max-age: PT6H
   rate-limit:
     enabled: ${APP_RATE_LIMIT_ENABLED:true}
-    # Header the host's proxy puts the real client address in (set when deployed).
+    # Header the host's proxy puts the visitor's address in. Without it, every visitor
+    # behind the proxy shares one address and one limit. On Render: CF-Connecting-IP.
     client-ip-header: ${APP_CLIENT_IP_HEADER:}
     window: PT10M
     login-per-window: 30
     register-per-window: 5
     checkout-per-window: 20
     claim-code-per-window: 60
+    # Every API call from one address, on top of the limits above (2 a second, sustained).
+    general-per-window: 1200
     # Wrong passwords in a row before one username is paused, and for how long.
     login-failures-before-lock: 5
     login-lock: PT15M

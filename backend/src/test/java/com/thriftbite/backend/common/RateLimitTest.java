@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "app.rate-limit.enabled=true",
         "app.rate-limit.register-per-window=2",
+        "app.rate-limit.client-ip-header=CF-Connecting-IP",
         "app.rate-limit.login-failures-before-lock=3"
 })
 class RateLimitTest extends ApiTestSupport {
@@ -48,6 +49,16 @@ class RateLimitTest extends ApiTestSupport {
                 .andExpect(header().exists("Retry-After"))
                 .andExpect(jsonPath("$.status").value(429))
                 .andExpect(jsonPath("$.code").value("rate_limited"));
+    }
+
+    /** Behind the host's proxy, the visitor's address arrives in a header. Without it, all visitors would share one limit. */
+    @Test
+    void eachVisitorAddressGetsItsOwnLimit() throws Exception {
+        registerFrom("203.0.113.7", uniqueName()).andExpect(status().isCreated());
+        registerFrom("203.0.113.7", uniqueName()).andExpect(status().isCreated());
+        registerFrom("203.0.113.7", uniqueName()).andExpect(status().isTooManyRequests());
+
+        registerFrom("203.0.113.8", uniqueName()).andExpect(status().isCreated());
     }
 
     @Test
@@ -78,6 +89,15 @@ class RateLimitTest extends ApiTestSupport {
 
     private ResultActions register(String username) throws Exception {
         return mvc.perform(post("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"username": "%s", "password": "%s", "accountType": "CONSUMER"}
+                        """.formatted(username, PASSWORD)));
+    }
+
+    private ResultActions registerFrom(String address, String username) throws Exception {
+        return mvc.perform(post("/api/auth/register")
+                .header("CF-Connecting-IP", address)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"username": "%s", "password": "%s", "accountType": "CONSUMER"}

@@ -10,8 +10,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -25,7 +23,7 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+    SecurityFilterChain apiSecurity(HttpSecurity http, CurrentAccountConverter currentAccount) throws Exception {
         http
                 // The API is stateless: clients send a JWT in the Authorization header on
                 // every request and no session cookie exists, so CSRF protection isn't needed.
@@ -44,19 +42,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/cart/**", "/api/checkout", "/api/reservations/**").hasRole("CONSUMER")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+                        // The role comes from the database on every request, not from the token.
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(currentAccount)));
         return http.build();
-    }
-
-    /** Turns the token's "roles" claim (e.g. ["OWNER"]) into Spring authorities (ROLE_OWNER). */
-    private JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter authorities = new JwtGrantedAuthoritiesConverter();
-        authorities.setAuthoritiesClaimName(TokenService.ROLES_CLAIM);
-        authorities.setAuthorityPrefix("ROLE_");
-
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(authorities);
-        return converter;
     }
 
     @Bean

@@ -83,7 +83,16 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 - A buyer holds at most **2 reservations** at a time.
 - **5 wrong claim codes** on one reservation pause code entry for 15 minutes.
 - **5 wrong passwords** in a row pause that username for 15 minutes.
-- Per-address limits on log in, sign-up, checkout and claim-code entry return `429` with `Retry-After`.
+- Per-address limits on log in, sign-up, checkout and claim-code entry return `429` with `Retry-After`. Every other API call shares a generous per-address limit (1,200 per 10 minutes), so a script can't flood the API.
+
+### Security notes
+
+- **Passwords** are stored as BCrypt hashes. A failed login takes the same time and gives the same message whether or not the username exists.
+- **Tokens** are signed JWTs that last 8 hours. The token only says who is asking: the role and approval are read from the database on every request, so deleting an account or changing its role takes effect at once.
+- **Every lookup is scoped to the caller.** The user id comes from the verified token, never from the request, and a store can only reach its own listings and pickups.
+- **Rate limits use the visitor's own address.** Behind Render that is the `CF-Connecting-IP` header (set in `render.yaml`); `X-Forwarded-For` can be faked there.
+- **The demo admin is boxed in.** Anyone can log in as it, so it only sees and approves the demo's sample stores.
+- **The frontend sends a Content Security Policy** (`frontend/vercel.json`): scripts only from the site itself, API calls only to the site and `*.onrender.com`, and no framing by other sites. If the API moves to another domain, update `connect-src` there.
 
 ## Deploy
 
@@ -98,6 +107,7 @@ Notes on the free tiers:
 
 - Render's free service sleeps after 15 minutes without traffic, and the first request after that takes about a minute while Java starts. An uptime monitor pinging `/actuator/health/liveness` every 10 minutes keeps it awake. That check doesn't touch the database, so Neon can still sleep.
 - Neon's free compute sleeps after 5 minutes without queries. The connection pool empties when idle and the expiry job runs every 30 minutes, so a quiet demo uses few compute hours.
+- Render reaches the app through Cloudflare, so `render.yaml` sets `APP_CLIENT_IP_HEADER=CF-Connecting-IP`. On another host, set it to that host's header, or every visitor shares one rate limit.
 - `APP_DEMO_ENABLED=true` adds one-tap demo accounts with sample Baguio data, rebuilt every 6 hours. **A rebuild deletes every account except the admin from `APP_ADMIN_USERNAME`**, so only turn it on for a demo deployment.
 
 ## Project structure
