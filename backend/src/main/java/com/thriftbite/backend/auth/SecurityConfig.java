@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/*", "/api/stores/*").permitAll()
                         // only exist when app.demo.enabled is true (404 otherwise)
                         .requestMatchers(HttpMethod.GET, "/api/demo").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/demo/login").permitAll()

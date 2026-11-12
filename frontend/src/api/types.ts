@@ -113,6 +113,75 @@ export interface ReservationResponse {
   items: ReservationLine[]
 }
 
+/** One day the store is open. Times are Manila time, "07:00:00". */
+export interface StoreHours {
+  weekday: Weekday
+  opens: string
+  closes: string
+}
+
+/** A store as buyers and its owner see it. */
+export interface StoreProfile {
+  id: string
+  slug: string
+  name: string
+  address: string | null
+  barangay: string | null
+  landmark: string | null
+  gcashAccepted: boolean
+  /** The pickup window new listings start with, Manila time; null until the owner sets it. */
+  defaultPickupStart: string | null
+  defaultPickupEnd: string | null
+  /** Open days only, Monday first. A day that's missing is closed. */
+  hours: StoreHours[]
+  version: number
+}
+
+export interface StoreProfileRequest {
+  name: string
+  address: string | null
+  barangay: string | null
+  landmark: string | null
+  gcashAccepted: boolean
+  defaultPickupStart: string | null
+  defaultPickupEnd: string | null
+  hours: StoreHours[]
+  version: number
+}
+
+/** A store's public page. */
+export interface StorePage {
+  store: StoreProfile
+  /** On sale or just sold out, not yet expired. */
+  items: ItemResponse[]
+  /** Counted over the last 30 days. The nulls mean "not enough history to say". */
+  stats: { mealsRescued: number; pickupRate: number | null; usualPostTime: string | null }
+}
+
+/** Something the store has listed before, and how it went last time. */
+export interface UsualListing {
+  name: string
+  description: string | null
+  price: number
+  originalPrice: number
+  pickupLocation: string
+  /** "2026-11-03" */
+  lastDay: string
+  sameWeekday: boolean
+  lastListed: number
+  lastSold: number
+  lastSoldOutAt: string | null
+  /** A different amount worth trying, or null when last time's amount looks right. */
+  suggestedQuantity: number | null
+  alreadyListed: boolean
+}
+
+export interface BatchListingRequest {
+  pickupStart: string
+  pickupEnd: string
+  items: { name: string; description?: string; price: number; originalPrice: number; quantity: number; pickupLocation: string }[]
+}
+
 export type DemoRole = 'BUYER' | 'OWNER' | 'ADMIN'
 
 export interface DemoInfo {

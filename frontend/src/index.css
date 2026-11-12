@@ -273,3 +273,22 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; }
   .deals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* store profile: one row per weekday */
+.hours-row { display: grid; grid-template-columns: 150px 160px 20px 160px; gap: 10px; align-items: center; justify-content: start; min-height: 44px; }
+.hours-row .input { height: 40px; padding: 0 10px; }
+/* on a phone the day sits on its own line, with the two times under it */
+@media (max-width: 760px) {
+  .hours-row { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr); gap: 6px 8px; padding: 6px 0; }
+  .hours-row > :first-child { grid-column: 1 / -1; }
+}
+
+/* post again: one row per usual listing */
+.usual-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--rule); }
+.usual-row:first-child { border-top: 0; }
+.usual-row.off { background: var(--glow); }
+.usual-row .qty { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 760px) {
+  .usual-row { grid-template-columns: 28px minmax(0, 1fr); padding: 14px; }
+  .usual-row .qty { grid-column: 2; }
+}

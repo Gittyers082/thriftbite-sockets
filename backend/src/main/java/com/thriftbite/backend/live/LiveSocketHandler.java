@@ -19,6 +19,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -65,7 +66,14 @@ public class LiveSocketHandler extends TextWebSocketHandler {
         session.setTextMessageSizeLimit(MAX_MESSAGE_BYTES);
         session.setBinaryMessageSizeLimit(MAX_MESSAGE_BYTES);
         Object address = session.getAttributes().get(ADDRESS_ATTRIBUTE);
-        sessions.add(session, address == null ? "unknown" : address.toString());
+        if (sessions.add(session, address == null ? "unknown" : address.toString()) == null) {
+            // A limit filled up between the handshake's check and now. The browser will try again later.
+            try {
+                session.close(CloseStatus.SERVICE_OVERLOAD);
+            } catch (IOException | RuntimeException e) {
+                // already gone
+            }
+        }
     }
 
     @Override

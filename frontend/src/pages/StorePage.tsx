@@ -1,0 +1,161 @@
+import { useCallback } from 'react'
+import { ApiError, api } from '../api/client'
+import type { StoreProfile } from '../api/types'
+import { DealCard } from '../components/DealCard'
+import { LiveBadge } from '../components/LiveBadge'
+import { Loading, ProblemPanel } from '../components/States'
+import { clockOf, clockWindow, manilaClock, manilaDate, percent, peso, plural, weekdayOf } from '../lib/format'
+import { href, paths } from '../lib/route'
+import { gap } from '../lib/style'
+import { useCart } from '../lib/useCart'
+import { useLiveStock } from '../lib/useLiveStock'
+import { useLoad, useNow } from '../lib/useLoad'
+import { NotFound } from './Info'
+
+const dayName = (weekday: string) => weekday.charAt(0) + weekday.slice(1).toLowerCase()
+
+/** "Open until 7:00 PM", "Opens at 7:00 AM", "Closed today", or nothing if the store hasn't said. */
+function openNow(store: StoreProfile, now: number): { label: string; open: boolean } | null {
+  if (store.hours.length === 0) return null
+  const today = store.hours.find((h) => h.weekday === weekdayOf(manilaDate(now)))
+  if (!today) return { label: 'Closed today', open: false }
+  const clock = manilaClock(now)
+  if (clock < today.opens.slice(0, 5)) return { label: `Opens at ${clockOf(today.opens)}`, open: false }
+  if (clock >= today.closes.slice(0, 5)) return { label: 'Closed for today', open: false }
+  return { label: `Open until ${clockOf(today.closes)}`, open: true }
+}
+
+/** A store's public page: where it is, how it's done lately, and what it has for pickup. */
+export function StorePage({ slug }: { slug: string }) {
+  const now = useNow()
+  const loaded = useLoad(useCallback(() => api.store(slug), [slug]))
+  const { cart, inCart, canReserve, loggedIn, adding, problem, add } = useCart()
+  const mutate = loaded.mutate
+  const changes = useLiveStock(loaded.data?.items,
+    useCallback((change) => mutate((page) => ({ ...page, items: change(page.items) })), [mutate]),
+    loaded.reload)
+
+  if (loaded.error instanceof ApiError && loaded.error.status === 404) return <NotFound />
+  if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
+  if (!loaded.data) return <Loading label="Loading the store…" />
+
+  const { store, items, stats } = loaded.data
+  const open = openNow(store, now)
+  const place = [store.address, store.barangay].filter(Boolean).join(', ')
+  const mapQuery = encodeURIComponent([store.name, store.address, store.barangay, 'Baguio City'].filter(Boolean).join(', '))
+  const onSale = items.filter((item) => item.status === 'AVAILABLE' && item.quantity > 0).length
+  const mine = cart?.lines.filter((line) => line.storeId === store.id) ?? []
+
+  return (
+    <div className="stack" style={gap(28)}>
+      <section className="card cream stack" style={gap(16, { padding: 'clamp(20px, 4vw, 40px)' })}>
+        <a href={href(paths.browse)} className="muted small" style={{ fontWeight: 600 }}>Back to browse</a>
+        <div className="wrap-row" style={gap(14, { alignItems: 'center' })}>
+          <h1 className="wide" style={{ fontSize: 'clamp(32px, 5vw, 56px)', lineHeight: 1.04, letterSpacing: -1.5 }}>{store.name}</h1>
+          {open && <span className={`tag ${open.open ? 'lime' : ''} tilt`} style={{ height: 32, fontSize: 15 }}>{open.label}</span>}
+        </div>
+        {(place || store.landmark) && (
+          <div className="stack" style={gap(2, { fontSize: 17 })}>
+            {place && <strong>{place}</strong>}
+            {store.landmark && <span className="muted">{store.landmark}</span>}
+          </div>
+        )}
+        <div className="wrap-row" style={gap(8)}>
+          {store.defaultPickupStart && store.defaultPickupEnd && (
+            <span className="tag">Pickup usually {clockWindow(store.defaultPickupStart, store.defaultPickupEnd)}</span>
+          )}
+          <span className="tag">{store.gcashAccepted ? 'Cash or GCash at the counter' : 'Cash at the counter'}</span>
+          {stats.usualPostTime && <span className="tag">Posts around {clockOf(stats.usualPostTime)}</span>}
+        </div>
+        {place && (
+          <div>
+            <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`} target="_blank" rel="noreferrer">
+              Open in Google Maps
+            </a>
+          </div>
+        )}
+      </section>
+
+      {(stats.mealsRescued > 0 || stats.pickupRate != null) && (
+        <section aria-label="Track record" className="two">
+          <div className="card kpi">
+            <strong className="wide value num">{stats.mealsRescued.toLocaleString('en-PH')}</strong>
+            <span>{stats.mealsRescued === 1 ? 'meal' : 'meals'} rescued in the last 30 days</span>
+          </div>
+          {stats.pickupRate != null && (
+            <div className="card kpi">
+              <strong className="wide value num">{percent(stats.pickupRate)}</strong>
+              <span>of reservations were picked up</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="stack" style={gap(16)}>
+        <div className="spread" style={{ flexWrap: 'wrap' }}>
+          <div className="row">
+            <h2 className="wide" style={{ fontSize: 28 }}>On sale now</h2>
+            <LiveBadge what="Stock counts" />
+          </div>
+          <p className="muted">{items.length === 0 ? '' : onSale === 0 ? 'All sold out' : `${plural(onSale, 'listing')} to reserve`}</p>
+        </div>
+        {problem && <p role="alert" className="err">{problem}</p>}
+        {items.length === 0 ? (
+          <div className="panel cream stack" style={gap(6, { padding: '20px 24px' })}>
+            <strong style={{ fontSize: 18 }}>Nothing for pickup right now.</strong>
+            <p>
+              {stats.usualPostTime
+                ? `${store.name} usually posts around ${clockOf(stats.usualPostTime)}. Check back then.`
+                : `${store.name} hasn’t posted food yet today.`}
+            </p>
+            <div><a className="btn" href={href(paths.browse)}>See other stores’ deals</a></div>
+          </div>
+        ) : (
+          <div className="deals">
+            {items.map((item) => (
+              <DealCard key={item.id} item={item} now={now} inCart={inCart.get(item.id)} canReserve={canReserve}
+                loggedIn={loggedIn} adding={adding === item.id} onAdd={() => add(item)} flashes={changes[item.id]} hideStore />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {store.hours.length > 0 && (
+        <section className="card" style={{ maxWidth: 420 }}>
+          <div className="card-head"><h2 style={{ fontSize: 18, fontWeight: 800 }}>Opening hours</h2></div>
+          <table className="tbl">
+            <tbody>
+              {(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'] as const).map((weekday) => {
+                const hours = store.hours.find((h) => h.weekday === weekday)
+                const today = weekday === weekdayOf(manilaDate(now))
+                return (
+                  <tr key={weekday} style={{ fontWeight: today ? 800 : undefined }}>
+                    <th scope="row" style={{ border: 0, borderBottom: '1px solid var(--rule)', fontSize: 16, color: 'inherit', fontWeight: 'inherit' }}>
+                      {dayName(weekday)}{today && <span className="sr"> (today)</span>}
+                    </th>
+                    <td className="r num">{hours ? clockWindow(hours.opens, hours.closes) : 'Closed'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      <section className="panel cream stack" style={gap(6, { padding: '18px 20px' })}>
+        <strong>About the food</strong>
+        <p>{store.name} made this food and is responsible for it. Ask at the counter about allergens before you pay.</p>
+      </section>
+
+      {mine.length > 0 && (
+        <div style={{ position: 'sticky', bottom: 16, zIndex: 5 }} className="cart-bar">
+          <div className="card spread" style={{ background: 'var(--ink)', color: '#fff', boxShadow: '5px 5px 0 var(--teal)', padding: '12px 16px 12px 22px' }}>
+            <p><strong>{plural(mine.length, 'item')} from {store.name} in your cart.</strong>{' '}
+              <span style={{ color: '#CDE3E2' }}>Pay {peso(mine.reduce((sum, line) => sum + line.lineTotal, 0))} at pickup.</span></p>
+            <a className="btn lime sm" href={href(paths.cart)} style={{ boxShadow: '2px 2px 0 #fff' }}>Review cart</a>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

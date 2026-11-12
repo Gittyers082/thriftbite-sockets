@@ -1,10 +1,11 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '../api/client'
+import { Loading } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { clockOf, manilaDate, manilaInstant, peso } from '../lib/format'
 import { href, navigate, paths } from '../lib/route'
 import { gap } from '../lib/style'
-import { useNow } from '../lib/useLoad'
+import { useLoad, useNow } from '../lib/useLoad'
 
 interface Draft {
   name: string
@@ -38,10 +39,27 @@ function problemsOf(d: Draft, today: string, now: number): Partial<Record<keyof 
   return p
 }
 
+/** Loads the store's defaults first, so the form opens already filled in where it can be. */
 export function NewListing() {
+  const store = useLoad(useCallback(() => api.myStore(), []))
+  if (store.loading && !store.data) return <Loading />
+  // If the profile can't be loaded, posting still works: the form just starts empty.
+  const s = store.data
+  const place = s ? [s.address, s.barangay].filter(Boolean).join(', ') : ''
+  return (
+    <ListingForm start={{
+      ...empty,
+      pickupLocation: place,
+      start: s?.defaultPickupStart?.slice(0, 5) ?? empty.start,
+      end: s?.defaultPickupEnd?.slice(0, 5) ?? empty.end,
+    }} />
+  )
+}
+
+function ListingForm({ start }: { start: Draft }) {
   const now = useNow()
   const today = manilaDate(now)
-  const [draft, setDraft] = useState<Draft>(empty)
+  const [draft, setDraft] = useState<Draft>(start)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -104,6 +122,7 @@ export function NewListing() {
           <h1 className="wide">Post a listing</h1>
           <p className="muted">For pickup today. It comes off the app when pickup ends.</p>
         </div>
+        <a className="btn" href={href(paths.postAgain)}>Post your usual listings</a>
       </div>
 
       <div className="cart-layout">

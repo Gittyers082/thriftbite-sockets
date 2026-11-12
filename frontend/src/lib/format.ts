@@ -58,6 +58,50 @@ export function manilaInstant(date: string, time: string): string {
   return new Date(`${date}T${time}:00+08:00`).toISOString()
 }
 
+/** "2026-11-07" plus n days, on the calendar (no time zone involved). */
+export function addDays(date: string, n: number): string {
+  const d = new Date(date + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+/** "2026-11-07" -> "Sat, Nov 7" */
+export function dateLabel(date: string): string {
+  return new Date(date + 'T00:00:00Z').toLocaleDateString('en-PH', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const
+
+/** "2026-11-07" -> "SATURDAY" */
+export function weekdayOf(date: string): (typeof WEEKDAYS)[number] {
+  return WEEKDAYS[new Date(date + 'T00:00:00Z').getUTCDay()]
+}
+
+/** The time in Manila right now as "17:05", for comparing with opening hours. */
+export function manilaClock(at: number): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: ZONE, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(at))
+}
+
+/** "today", "tomorrow" or "Nov 12": which day an instant falls on in Manila, seen from now. */
+export function dayWord(iso: string, now: number): string {
+  const day = manilaDate(new Date(iso).getTime())
+  const today = manilaDate(now)
+  return day === today ? 'today' : day === addDays(today, 1) ? 'tomorrow' : dayOf(iso)
+}
+
+/** "5:00 to 7:00 PM" today, "tomorrow, 5:00 to 7:00 PM" otherwise. */
+export function pickupLabel(startIso: string, endIso: string, now: number): string {
+  const day = dayWord(startIso, now)
+  return day === 'today' ? windowOf(startIso, endIso) : `${day}, ${windowOf(startIso, endIso)}`
+}
+
+/** Two clock times, "17:00:00" and "19:00:00" -> "5:00 to 7:00 PM" */
+export function clockWindow(start: string, end: string): string {
+  const a = clockOf(start)
+  const b = clockOf(end)
+  return a.slice(-2) === b.slice(-2) ? `${a.slice(0, -3)} to ${b}` : `${a} to ${b}`
+}
+
 /** "16:39:00" -> "4:39 PM" */
 export function clockOf(localTime: string): string {
   const [h, m] = localTime.split(':').map(Number)

@@ -1,6 +1,7 @@
 import type {
-  CartResponse, DemoInfo, DemoRole, ItemRequest, ItemResponse, LoginResponse, PageResponse,
-  ProblemCode, ProblemDetail, RegisterRequest, ReservationResponse, SalesStats, UserResponse,
+  BatchListingRequest, CartResponse, DemoInfo, DemoRole, ItemRequest, ItemResponse, LoginResponse, PageResponse,
+  ProblemCode, ProblemDetail, RegisterRequest, ReservationResponse, SalesStats, StorePage, StoreProfile,
+  StoreProfileRequest, UserResponse, UsualListing,
 } from './types'
 
 /** Where the API lives. Set VITE_API_URL on Vercel; locally it's the Spring Boot default. */
@@ -91,6 +92,7 @@ export const api = {
   browse: (q = '', page = 0, size = 48) =>
     request<PageResponse<ItemResponse>>('GET', `/api/items?q=${encodeURIComponent(q)}&page=${page}&size=${size}`),
   item: (id: string) => request<ItemResponse>('GET', `/api/items/${id}`),
+  store: (slug: string) => request<StorePage>('GET', `/api/stores/${encodeURIComponent(slug)}`),
 
   cart: () => request<CartResponse>('GET', '/api/cart'),
   setCartQuantity: (itemId: string, quantity: number) =>
@@ -103,6 +105,12 @@ export const api = {
   createItem: (body: ItemRequest) => request<ItemResponse>('POST', '/api/owner/items', body),
   updateItem: (id: string, body: ItemRequest) => request<ItemResponse>('PUT', `/api/owner/items/${id}`, body),
   removeItem: (id: string) => request<void>('DELETE', `/api/owner/items/${id}`),
+  /** What the store usually lists. `day` is the Manila date being posted for, today or tomorrow. */
+  usualListings: (day: string) => request<UsualListing[]>('GET', `/api/owner/items/usual?for=${day}`),
+  /** Several listings at once: either all are posted or none. */
+  postBatch: (body: BatchListingRequest) => request<ItemResponse[]>('POST', '/api/owner/items/batch', body),
+  myStore: () => request<StoreProfile>('GET', '/api/owner/store'),
+  saveStore: (body: StoreProfileRequest) => request<StoreProfile>('PUT', '/api/owner/store', body),
   ownerPickups: () => request<ReservationResponse[]>('GET', '/api/owner/reservations'),
   completePickup: (id: string, claimCode: string) =>
     request<ReservationResponse>('POST', `/api/owner/reservations/${id}/complete`, { claimCode }),

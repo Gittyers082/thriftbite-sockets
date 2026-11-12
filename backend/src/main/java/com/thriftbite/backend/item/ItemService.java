@@ -8,8 +8,10 @@ import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.common.PageResponse;
+import com.thriftbite.backend.item.dto.BatchListingRequest;
 import com.thriftbite.backend.item.dto.ItemRequest;
 import com.thriftbite.backend.item.dto.ItemResponse;
+import com.thriftbite.backend.item.dto.UsualListing;
 import com.thriftbite.backend.store.StoreRepository;
 import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.UserRepository;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -32,15 +35,18 @@ public class ItemService {
     private final StoreRepository storeRepository;
     private final StoreService stores;
     private final StockEvents events;
+    private final UsualListings usualListings;
     private final ApplicationEventPublisher live;
 
     public ItemService(ItemRepository items, UserRepository users, StoreRepository storeRepository,
-                       StoreService stores, StockEvents events, ApplicationEventPublisher live) {
+                       StoreService stores, StockEvents events, UsualListings usualListings,
+                       ApplicationEventPublisher live) {
         this.items = items;
         this.users = users;
         this.storeRepository = storeRepository;
         this.stores = stores;
         this.events = events;
+        this.usualListings = usualListings;
         this.live = live;
     }
 
@@ -85,6 +91,35 @@ public class ItemService {
         events.record(item.getId(), StockEventType.LISTED, item.getQuantity(), null, userId);
         tellOpenScreens(item.getId(), storeId);
         return ItemResponse.from(item);
+    }
+
+    /**
+     * Posts several listings with one pickup window, all or nothing: if one is
+     * refused, none of them go on sale.
+     */
+    @Transactional
+    public List<ItemResponse> createBatch(UUID userId, BatchListingRequest request) {
+        return request.items().stream()
+                .map(entry -> create(userId, new ItemRequest(
+                        entry.name(), entry.description(), entry.price(), entry.originalPrice(), entry.quantity(),
+                        request.pickupEnd(),   // the listing comes off sale when pickup ends
+                        entry.pickupLocation(), request.pickupStart(), request.pickupEnd(), null)))
+                .toList();
+    }
+
+    /**
+     * What the store usually lists, for the "Post again" screen.
+     *
+     * @param postingFor the day the food will be picked up: today or tomorrow (Manila); null means today
+     */
+    @Transactional(readOnly = true)
+    public List<UsualListing> usual(UUID userId, LocalDate postingFor) {
+        LocalDate today = LocalDate.now(UsualListings.ZONE);
+        LocalDate day = postingFor == null ? today : postingFor;
+        if (day.isBefore(today) || day.isAfter(today.plusDays(1))) {
+            throw new BadRequestException("You can post for today or tomorrow");
+        }
+        return usualListings.forStore(stores.storeIdFor(userId), day);
     }
 
     @Transactional

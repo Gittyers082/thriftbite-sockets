@@ -7,6 +7,7 @@ import com.thriftbite.backend.item.ItemRepository;
 import com.thriftbite.backend.reservation.Reservation;
 import com.thriftbite.backend.reservation.ReservationItem;
 import com.thriftbite.backend.reservation.ReservationRepository;
+import com.thriftbite.backend.store.OpenHours;
 import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.Role;
@@ -27,11 +28,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -145,12 +150,22 @@ public class DemoData implements ApplicationRunner {
 
         User rosa = user(OWNER, Role.OWNER, true, unusableHash);
         Store sunrise = stores.createForOwner(rosa, "Sunrise Bakery");
-        sunrise.locate("112 Session Road", "Green awning, two doors up from the jeepney stop", null, null);
-        sunrise.acceptGcash(true);
+        Map<DayOfWeek, OpenHours> sunriseHours = new EnumMap<>(DayOfWeek.class);
+        for (DayOfWeek day : DayOfWeek.values()) {
+            sunriseHours.put(day, new OpenHours(LocalTime.of(7, 0), LocalTime.of(day == DayOfWeek.FRIDAY ? 20 : 19, 0)));
+        }
+        sunrise.updateProfile("Sunrise Bakery", "112 Session Road", "Session Road Area",
+                "Green awning, two doors up from the jeepney stop", true,
+                LocalTime.of(17, 0), LocalTime.of(19, 0), sunriseHours);
         Shop lola = shop("lola.ising", "Lola Ising's Carinderia", true, unusableHash);
+        lola.store().locate("48 Bonifacio Street", "Across from the tricycle terminal", null, null);
         Shop burnham = shop("burnham.taho", "Burnham Taho Cart", true, unusableHash);
+        burnham.store().locate("Burnham Park", "Near the lake, by the boat rentals", null, null);
         Shop pinegrove = shop("pinegrove.cafe", "Pine Grove Café", true, unusableHash);
+        pinegrove.store().locate("21 Legarda Road", null, null, null);
+        pinegrove.store().acceptGcash(true);
         Shop kusina = shop("kusina.ading", "Kusina ni Ading", true, unusableHash);
+        kusina.store().locate("7 Abanao Street", null, null, null);
         // waiting for the admin, so the approvals screen has something on it
         shop("manang.fe.bakeshop", "Manang Fe's Bakeshop", false, unusableHash);
         shop("aurora.carinderia", "Aurora Carinderia", false, unusableHash);

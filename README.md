@@ -57,10 +57,15 @@ cd backend
 | GET | `/api/auth/me` | logged in | The current user |
 | GET | `/api/items?q=&page=&size=` | anyone | Browse food for sale, soonest-expiring first |
 | GET | `/api/items/{id}` | anyone | One listing |
+| GET | `/api/stores/{slug}` | anyone | A store's public page: profile, what it has on sale now, and its last 30 days in numbers |
 | GET | `/api/owner/items` | owner | Your own listings |
 | POST | `/api/owner/items` | owner | Create a listing |
 | PUT | `/api/owner/items/{id}` | owner | Edit a listing (send the `version` you loaded) |
 | DELETE | `/api/owner/items/{id}` | owner | Remove a listing |
+| GET | `/api/owner/items/usual?for=` | owner | "Post again": what the store usually lists and how it went last time, for today or tomorrow |
+| POST | `/api/owner/items/batch` | owner | Post several listings with one pickup window, all or nothing |
+| GET | `/api/owner/store` | owner | Your store profile |
+| PUT | `/api/owner/store` | owner | Save the profile: address, landmark, opening hours, usual pickup window, GCash (send the `version` you loaded) |
 | GET | `/api/cart` | consumer | Your cart, with a warning on lines that sold out |
 | PUT | `/api/cart/items/{itemId}` | consumer | Add an item or change its quantity (`0` removes it) |
 | POST | `/api/checkout` | consumer | Reserve everything in the cart, all or nothing: one reservation and claim code per store |
@@ -76,6 +81,14 @@ cd backend
 | POST | `/api/demo/login` | anyone | Log in as the demo `BUYER`, `OWNER` or `ADMIN` (demo deployments only) |
 
 Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`).
+
+### Stores
+
+Each store has a public page at `/stores/{slug}` with its address and landmark, opening hours, what it has on sale now, and a short track record. The numbers come from the same stock history the sales page uses: meals picked up in the last 30 days, the share of reservations that were picked up, and the time of day the store usually posts. Where there isn't enough history to say something honest (fewer than 5 finished reservations, fewer than 3 posts), the page says nothing.
+
+**Post again** turns that history into tomorrow's listings. For each food the store has sold in the last five weeks it shows the same weekday last week (a bakery's Sunday is not its Tuesday), with a nudge: more if it was all reserved before pickup opened, fewer if 60% or less was picked up. The owner adjusts the amounts and posts them all in one transaction.
+
+A store that hasn't been approved yet has no public page.
 
 ### Live updates
 

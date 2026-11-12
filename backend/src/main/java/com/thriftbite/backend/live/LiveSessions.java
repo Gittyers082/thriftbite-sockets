@@ -106,7 +106,16 @@ public class LiveSessions {
         return clients.values().stream().filter(c -> c.address.equals(address)).count() >= maxPerAddress;
     }
 
-    Client add(WebSocketSession session, String address) {
+    /**
+     * Registers a new connection, or returns null if a limit was reached while it was connecting.
+     *
+     * The handshake checks the limits first, but several connections can pass that check at the
+     * same moment. Counting and adding in one step here (synchronized) is what makes the limits exact.
+     */
+    synchronized Client add(WebSocketSession session, String address) {
+        if (isFull() || isFullFor(address)) {
+            return null;
+        }
         Client client = new Client(
                 new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, SEND_BUFFER_LIMIT_BYTES), address);
         clients.put(session.getId(), client);

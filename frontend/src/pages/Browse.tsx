@@ -1,55 +1,31 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
-import type { CartResponse, ItemResponse } from '../api/types'
 import thryxFull from '../assets/thryx-full.png'
+import { DealCard } from '../components/DealCard'
 import { LiveBadge } from '../components/LiveBadge'
 import { DealSkeletons, Empty, ProblemPanel } from '../components/States'
-import { messageOf } from '../lib/errors'
-import { useAuth } from '../lib/auth-context'
-import { peso, plural, untilLabel, windowOf } from '../lib/format'
-import { href, navigate, paths } from '../lib/route'
+import { peso, plural } from '../lib/format'
+import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
-import type { LiveMessage } from '../lib/live'
-import { useLive, useLiveReload } from '../lib/useLive'
+import { useCart } from '../lib/useCart'
+import { useLiveStock } from '../lib/useLiveStock'
 import { useLoad, useNow } from '../lib/useLoad'
 
 type Sort = 'closing' | 'discount'
 
 export function Browse() {
-  const { user } = useAuth()
-  const isBuyer = user?.role === 'CONSUMER'
   const now = useNow()
   const [typed, setTyped] = useState('')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('closing')
-  const [cart, setCart] = useState<CartResponse | null>(null)
-  const [adding, setAdding] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | null>(null)
+  const { cart, inCart, canReserve, loggedIn, adding, problem, add } = useCart()
 
   const deals = useLoad(useCallback(() => api.browse(query), [query]))
-  /** Counts live changes per listing; a new number replays the little flash on its "left" tag. */
-  const [changed, setChanged] = useState<Record<string, number>>({})
-
   // Live: when someone reserves a listing on screen, its count changes in place.
-  const shown = deals.data?.content
   const mutateDeals = deals.mutate
-  useLive(useCallback((message: LiveMessage) => {
-    if (message.type !== 'item' || !shown?.some((item) => item.id === message.id)) return
-    mutateDeals((page) => ({
-      ...page,
-      content: page.content.map((item) =>
-        item.id === message.id ? { ...item, quantity: message.quantity, status: message.status } : item),
-    }))
-    setChanged((counts) => ({ ...counts, [message.id]: (counts[message.id] ?? 0) + 1 }))
-  }, [shown, mutateDeals]))
-  // A listing that isn't on screen came on sale (new, or freed by a cancellation), or many changed: load the list again.
-  useLiveReload(deals.reload, useCallback((message: LiveMessage) =>
-    message.type === 'deals'
-    || (message.type === 'item' && message.status === 'AVAILABLE' && !shown?.some((item) => item.id === message.id)),
-  [shown]))
-  const loadedCart = useLoad(useCallback(() => (isBuyer ? api.cart() : Promise.resolve(null)), [isBuyer]))
-  const currentCart = cart ?? loadedCart.data ?? null
-  const inCart = new Map(currentCart?.lines.map((line) => [line.itemId, line.quantity]) ?? [])
+  const changes = useLiveStock(deals.data?.content,
+    useCallback((change) => mutateDeals((page) => ({ ...page, content: change(page.content) })), [mutateDeals]),
+    deals.reload)
 
   const items = [...(deals.data?.content ?? [])].sort((a, b) =>
     sort === 'discount' ? b.discountPercent - a.discountPercent : a.pickupEnd.localeCompare(b.pickupEnd))
@@ -59,21 +35,8 @@ export function Browse() {
     setQuery(typed.trim())
   }
 
-  const add = async (item: ItemResponse) => {
-    if (!user) return navigate(paths.login)
-    setAdding(item.id)
-    setProblem(null)
-    try {
-      setCart(await api.setCartQuantity(item.id, (inCart.get(item.id) ?? 0) + 1))
-    } catch (error) {
-      setProblem(messageOf(error))
-    } finally {
-      setAdding(null)
-    }
-  }
-
-  const cartCount = currentCart?.lines.length ?? 0
-  const stores = new Set(currentCart?.lines.map((line) => line.storeId)).size
+  const cartCount = cart?.lines.length ?? 0
+  const stores = new Set(cart?.lines.map((line) => line.storeId)).size
 
   return (
     <div className="stack" style={gap(28)}>
@@ -134,50 +97,10 @@ export function Browse() {
           <>
             <h2 className="sr">Deals, {sort === 'closing' ? 'pickup closing soonest first' : 'biggest discount first'}</h2>
             <div className="deals">
-              {items.map((item) => {
-                const qty = inCart.get(item.id)
-                const closingSoon = new Date(item.pickupEnd).getTime() - now < 2 * 3600_000
-                // A live update can take a listing off sale while it's on screen. It stays put
-                // (nothing jumps under a finger about to tap) and goes at the next reload.
-                const soldOut = item.status === 'SOLD_OUT' || (item.status === 'AVAILABLE' && item.quantity === 0)
-                const gone = soldOut || item.status !== 'AVAILABLE'
-                const flashes = changed[item.id] ?? 0
-                return (
-                  <article key={item.id} className={`card deal${gone ? ' gone' : ''}`}>
-                    <div className="photo">
-                      <span>Photo</span>
-                      <span className="tag lime tilt">{item.discountPercent}% off</span>
-                    </div>
-                    <div className="deal-body">
-                      <div>
-                        <h3>{item.name}</h3>
-                        <p className="muted small">{item.storeName}</p>
-                      </div>
-                      <p className="price">
-                        <strong className="wide num">{peso(item.price)}</strong>
-                        <s className="muted num small">{peso(item.originalPrice)}</s>
-                      </p>
-                      <div className="wrap-row" style={gap(6)}>
-                        <span className={`tag ${closingSoon ? 'orange' : 'cream'}`}>Closes in {untilLabel(item.pickupEnd, now)}</span>
-                        <span key={flashes} className={`tag${gone ? ' orange' : ''}${flashes ? ' flash' : ''}`}>
-                          {soldOut ? 'Sold out' : gone ? 'No longer on sale' : `${item.quantity} left`}
-                        </span>
-                      </div>
-                      <p className="muted small">Pick up {windowOf(item.pickupStart, item.pickupEnd)}</p>
-                      {user && !isBuyer ? null : gone ? (
-                        <button type="button" className="btn sm" disabled>{soldOut ? 'Sold out' : 'Not on sale'}</button>
-                      ) : qty ? (
-                        <a className="btn teal sm" href={href(paths.cart)}>In your cart ({qty})</a>
-                      ) : (
-                        <button type="button" className="btn sm" onClick={() => add(item)}
-                          disabled={adding === item.id} aria-label={`Add ${item.name} to cart`}>
-                          {adding === item.id ? 'Adding…' : user ? 'Add to cart' : 'Log in to reserve'}
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                )
-              })}
+              {items.map((item) => (
+                <DealCard key={item.id} item={item} now={now} inCart={inCart.get(item.id)} canReserve={canReserve}
+                  loggedIn={loggedIn} adding={adding === item.id} onAdd={() => add(item)} flashes={changes[item.id]} />
+              ))}
             </div>
           </>
         )}
@@ -186,7 +109,7 @@ export function Browse() {
         <div style={{ position: 'sticky', bottom: 16, zIndex: 5 }} className="cart-bar">
           <div className="card spread" style={{ background: 'var(--ink)', color: '#fff', boxShadow: '5px 5px 0 var(--teal)', padding: '12px 16px 12px 22px' }}>
             <p><strong>{plural(cartCount, 'item')} from {plural(stores, 'store')}.</strong>{' '}
-              <span style={{ color: '#CDE3E2' }}>Pay {peso(currentCart?.total ?? 0)} at pickup.</span></p>
+              <span style={{ color: '#CDE3E2' }}>Pay {peso(cart?.total ?? 0)} at pickup.</span></p>
             <a className="btn lime sm" href={href(paths.cart)} style={{ boxShadow: '2px 2px 0 #fff' }}>Review cart</a>
           </div>
         </div>

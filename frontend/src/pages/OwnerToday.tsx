@@ -43,7 +43,7 @@ function requestFrom(item: ItemResponse, changes: Partial<ItemRequest> = {}): It
 /** The store's counter screen: who's coming to pick up, and what's still on sale. */
 export function OwnerToday() {
   const now = useNow()
-  const loaded = useLoad(useCallback(() => Promise.all([api.ownerPickups(), api.myItems()]), []))
+  const loaded = useLoad(useCallback(() => Promise.all([api.ownerPickups(), api.myItems(), api.myStore()]), []))
   useLiveReload(loaded.reload, storeChanged)
   const [handedOver, setHandedOver] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -53,10 +53,9 @@ export function OwnerToday() {
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading label="Loading today’s pickups…" />
 
-  const [pickups, items] = loaded.data
+  const [pickups, items, store] = loaded.data
   const live = items.filter((i) => i.status === 'AVAILABLE' || i.status === 'SOLD_OUT')
   const ended = items.filter((i) => i.status === 'EXPIRED')
-  const storeName = items[0]?.storeName ?? pickups[0]?.storeName ?? 'Your store'
   const toCollect = pickups.reduce((sum, r) => sum + r.total, 0)
   const leftOnSale = live.reduce((sum, i) => sum + (i.status === 'AVAILABLE' ? i.quantity : 0), 0)
 
@@ -90,11 +89,21 @@ export function OwnerToday() {
     <div className="stack" style={gap(28)}>
       <div className="page-head">
         <div className="stack" style={gap(6)}>
-          <h1 className="wide">{storeName}</h1>
+          <h1 className="wide">{store.name}</h1>
           <p className="muted">Today, {dayOf(new Date(now).toISOString())}</p>
         </div>
-        <a className="btn teal" href={href(paths.newListing)}>Post a listing</a>
+        <div className="wrap-row">
+          <a className="btn" href={href(paths.postAgain)}>Post again</a>
+          <a className="btn teal" href={href(paths.newListing)}>Post a listing</a>
+        </div>
       </div>
+
+      {!store.address && (
+        <div className="panel notice">
+          <p className="grow"><strong>Buyers can’t see where you are yet.</strong> Add your address and opening hours to your store profile.</p>
+          <a className="btn sm" href={href(paths.storeProfile)}>Finish store profile</a>
+        </div>
+      )}
 
       <div className="kpis">
         <Kpi label="Waiting for pickup" value={String(pickups.length)} note={plural(pickups.reduce((n, r) => n + r.items.reduce((m, l) => m + l.quantity, 0), 0), 'item')} />

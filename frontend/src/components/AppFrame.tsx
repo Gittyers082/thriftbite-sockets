@@ -8,6 +8,10 @@ interface NavItem {
   label: string
   path: string
   icon: IconName
+  /** A shorter name for the phone's tab bar. */
+  short?: string
+  /** Left off the phone's tab bar (five tabs is the most that fits); reached from another screen instead. */
+  desktopOnly?: boolean
 }
 
 function navFor(role: string | undefined): NavItem[] {
@@ -15,7 +19,9 @@ function navFor(role: string | undefined): NavItem[] {
     return [
       { label: 'Today', path: paths.owner, icon: 'today' },
       { label: 'Sales', path: paths.sales, icon: 'sales' },
-      { label: 'New listing', path: paths.newListing, icon: 'plus' },
+      { label: 'New listing', short: 'New', path: paths.newListing, icon: 'plus' },
+      { label: 'Post again', path: paths.postAgain, icon: 'plus', desktopOnly: true },
+      { label: 'Store profile', short: 'Store', path: paths.storeProfile, icon: 'store' },
     ]
   }
   if (role === 'ADMIN') {
@@ -35,7 +41,10 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const path = useRoute()
   const nav = navFor(user?.role)
-  const isCurrent = (item: NavItem) => item.path === path || (item.path !== '/' && path.startsWith(item.path + '/'))
+  // The longest matching path wins, so "Today" (/owner) isn't lit on /owner/sales.
+  const current = nav.filter((item) => item.path === path || (item.path !== '/' && path.startsWith(item.path + '/')))
+    .sort((a, b) => b.path.length - a.path.length)[0]?.path ?? path
+  const isCurrent = (item: NavItem) => item.path === current
   const ownerArea = user?.role === 'OWNER' || user?.role === 'ADMIN'
   const meTab: NavItem = { label: user ? 'Account' : 'Log in', path: user ? '/me' : paths.login, icon: 'person' }
 
@@ -79,10 +88,10 @@ export function AppFrame({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="tabbar" aria-label={ownerArea ? 'Store' : 'Main'}>
-        {[...nav, meTab].map((item) => (
+        {[...nav.filter((item) => !item.desktopOnly), meTab].map((item) => (
           <a key={item.path} href={href(item.path)} aria-current={isCurrent(item) ? 'page' : undefined}>
             <Icon name={item.icon} />
-            <span>{item.label}</span>
+            <span>{item.short ?? item.label}</span>
           </a>
         ))}
       </nav>

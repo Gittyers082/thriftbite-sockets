@@ -12,8 +12,11 @@ import { Me, NotFound, Pending, Privacy } from './pages/Info'
 import { NewListing } from './pages/NewListing'
 import { OwnerToday } from './pages/OwnerToday'
 import { Pickup } from './pages/Pickup'
+import { PostAgain } from './pages/PostAgain'
 import { Reservations } from './pages/Reservations'
 import { Sales } from './pages/Sales'
+import { StorePage } from './pages/StorePage'
+import { StoreProfilePage } from './pages/StoreProfile'
 
 const needs: Record<Role, 'buyer' | 'store' | 'admin'> = { CONSUMER: 'buyer', OWNER: 'store', ADMIN: 'admin' }
 
@@ -28,6 +31,8 @@ function Only({ role, children }: { role: Role; children: ReactNode }) {
 function page(path: string): ReactNode {
   const pickup = match(path, '/pickup/:id')
   if (pickup) return <Only role="CONSUMER"><Pickup reservationId={pickup.id} /></Only>
+  const store = match(path, '/stores/:slug')
+  if (store) return <StorePage slug={store.slug} />
 
   switch (path) {
     case paths.browse: return <Browse />
@@ -35,6 +40,8 @@ function page(path: string): ReactNode {
     case paths.reservations: return <Only role="CONSUMER"><Reservations /></Only>
     case paths.owner: return <Only role="OWNER"><OwnerToday /></Only>
     case paths.newListing: return <Only role="OWNER"><NewListing /></Only>
+    case paths.postAgain: return <Only role="OWNER"><PostAgain /></Only>
+    case paths.storeProfile: return <Only role="OWNER"><StoreProfilePage /></Only>
     case paths.sales: return <Only role="OWNER"><Sales /></Only>
     case paths.admin: return <Only role="ADMIN"><Admin /></Only>
     case paths.pending: return <Pending />
