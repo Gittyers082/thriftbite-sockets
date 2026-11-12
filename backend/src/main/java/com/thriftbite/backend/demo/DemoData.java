@@ -187,15 +187,15 @@ public class DemoData implements ApplicationRunner {
 
         String lolaAt = "Lola Ising's Carinderia, Bonifacio Street";
         Item adobo = item(lola.store(), lola.owner(), "Chicken adobo with rice", "One serving.", "60.00", "95.00", 6, lolaW, lolaAt);
-        item(lola.store(), lola.owner(), "Pinakbet family tray", "Good for 4.", "120.00", "220.00", 2, lolaW, lolaAt);
+        Item pinakbet = item(lola.store(), lola.owner(), "Pinakbet family tray", "Good for 4.", "120.00", "220.00", 2, lolaW, lolaAt);
 
         Item taho = item(burnham.store(), burnham.owner(), "Strawberry taho, 2 cups", null, "20.00", "35.00", 8, burnhamW, "Burnham Park, near the lake");
 
         String pinegroveAt = "Pine Grove Café, Legarda Road";
         Item bananaBread = item(pinegrove.store(), pinegrove.owner(), "Banana bread loaf", null, "70.00", "140.00", 3, pinegroveW, pinegroveAt);
-        item(pinegrove.store(), pinegrove.owner(), "Ham and cheese croissants, 2 pcs", null, "45.00", "90.00", 4, pinegroveW, pinegroveAt);
+        Item croissants = item(pinegrove.store(), pinegrove.owner(), "Ham and cheese croissants, 2 pcs", null, "45.00", "90.00", 4, pinegroveW, pinegroveAt);
 
-        item(kusina.store(), kusina.owner(), "Lumpiang shanghai, 10 pcs", null, "55.00", "90.00", 5, kusinaW, "Kusina ni Ading, Abanao Street");
+        Item lumpia = item(kusina.store(), kusina.owner(), "Lumpiang shanghai, 10 pcs", null, "55.00", "90.00", 5, kusinaW, "Kusina ni Ading, Abanao Street");
 
         // Today at Sunrise Bakery: two pickups waiting, one handed over.
         // (Stock above already has these taken out: 6 pandesal listed, 3 reserved; 3 ensaymada, 1 reserved.)
@@ -241,6 +241,18 @@ public class DemoData implements ApplicationRunner {
         reservations.save(missed);
         backdate(missed, now.minus(Duration.ofDays(8)), null);
 
+        // ...and a couple of months of pickups, so the account page has savings to show.
+        pickedUp(buyer, lola.store(), "118452", adobo, 2, now.minus(Duration.ofDays(12)));
+        pickedUp(buyer, pinegrove.store(), "902317", croissants, 1, now.minus(Duration.ofDays(19)));
+        pickedUp(buyer, kusina.store(), "475560", lumpia, 1, now.minus(Duration.ofDays(33)));
+        pickedUp(buyer, lola.store(), "660913", pinakbet, 1, now.minus(Duration.ofDays(40)));
+        pickedUp(buyer, burnham.store(), "239874", taho, 2, now.minus(Duration.ofDays(55)));
+        pickedUp(buyer, pinegrove.store(), "781245", bananaBread, 1, now.minus(Duration.ofDays(61)));
+
+        // The buyer has been around as long as their history.
+        jdbc.update("UPDATE users SET created_at = ? WHERE id = ?",
+                Timestamp.from(now.minus(Duration.ofDays(75))), buyer.getId());
+
         log.debug("Seeded demo reservation {} for {}", mine.getId(), BUYER);
     }
 
@@ -283,10 +295,26 @@ public class DemoData implements ApplicationRunner {
     }
 
     /** created_at is set on insert, so past reservations get their real times afterwards. */
+    /** A reservation the buyer picked up at {@code when}, three hours after making it. */
+    private void pickedUp(User buyer, Store store, String code, Item item, int quantity, Instant when) {
+        Reservation reservation = reservation(buyer, store, code, when, item, quantity, null, 0);
+        reservation.complete(when);
+        reservations.save(reservation);
+        backdate(reservation, when.minus(Duration.ofHours(3)), when);
+    }
+
+    /** Moves a finished reservation into the past: made at {@code createdAt}, ended three hours later. */
     private void backdate(Reservation reservation, Instant createdAt, Instant completedAt) {
         reservations.flush();
-        jdbc.update("UPDATE reservations SET created_at = ?, pickup_deadline = ?, completed_at = ? WHERE id = ?",
-                Timestamp.from(createdAt), Timestamp.from(createdAt.plus(Duration.ofHours(3))),
-                completedAt == null ? null : Timestamp.from(completedAt), reservation.getId());
+        Timestamp ended = Timestamp.from(createdAt.plus(Duration.ofHours(3)));
+        jdbc.update("""
+                UPDATE reservations
+                   SET created_at = ?, pickup_deadline = ?, completed_at = ?,
+                       cancelled_at = CASE WHEN cancelled_at IS NULL THEN NULL ELSE ?::timestamptz END,
+                       expired_at   = CASE WHEN expired_at   IS NULL THEN NULL ELSE ?::timestamptz END
+                 WHERE id = ?
+                """,
+                Timestamp.from(createdAt), ended, completedAt == null ? null : Timestamp.from(completedAt),
+                ended, ended, reservation.getId());
     }
 }

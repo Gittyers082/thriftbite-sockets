@@ -46,7 +46,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
     .sort((a, b) => b.path.length - a.path.length)[0]?.path ?? path
   const isCurrent = (item: NavItem) => item.path === current
   const ownerArea = user?.role === 'OWNER' || user?.role === 'ADMIN'
-  const meTab: NavItem = { label: user ? 'Account' : 'Log in', path: user ? '/me' : paths.login, icon: 'person' }
+  const meTab: NavItem = { label: user ? 'Account' : 'Log in', path: user ? paths.account : paths.login, icon: 'person' }
 
   return (
     <div className="page">
@@ -73,7 +73,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
             </a>
           )}
           {user ? (
-            <a className="avatar" href={href('/me')} aria-label={`Account: ${user.username}`}
+            <a className="avatar" href={href(paths.account)} aria-label={`Account: ${user.username}`}
               style={{ background: avatarColor[user.role], color: user.role === 'ADMIN' ? '#fff' : undefined }}>
               {user.username.charAt(0)}
             </a>

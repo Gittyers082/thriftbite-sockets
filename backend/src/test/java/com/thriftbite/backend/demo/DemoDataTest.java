@@ -51,7 +51,7 @@ class DemoDataTest extends ApiTestSupport {
         String token = demoLogin("BUYER");
         mvc.perform(get("/api/reservations").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(4)))
+                .andExpect(jsonPath("$", hasSize(10)))   // one waiting, six picked up earlier, one yesterday, one cancelled, one missed
                 .andExpect(jsonPath("$[*].claimCode", hasItem(DemoData.BUYER_CLAIM_CODE)));
     }
 

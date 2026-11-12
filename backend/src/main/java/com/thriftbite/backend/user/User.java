@@ -38,6 +38,14 @@ public class User {
     @Column(nullable = false)
     private boolean demo;
 
+    /** Goes up when the password changes; login tokens from an older version are refused. */
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion;
+
+    /** Set when a buyer deletes their account. The row stays, without the username. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -74,11 +82,36 @@ public class User {
         this.passwordHash = newPasswordHash;
     }
 
+    /** A new password also logs out every device that's still holding an old login token. */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+        this.tokenVersion++;
+    }
+
+    /**
+     * Deletes the account while keeping the row, so the stores' past reservations still add up:
+     * the username is replaced, the password can never match again, and every login token dies.
+     */
+    public void scrub(String placeholderUsername, String unusablePasswordHash, Instant now) {
+        this.username = placeholderUsername;
+        this.passwordHash = unusablePasswordHash;
+        this.approved = false;
+        this.tokenVersion++;
+        this.deletedAt = now;
+    }
+
+    /** What stores see on a past reservation: the username, or "Deleted account". */
+    public String getDisplayName() {
+        return deletedAt == null ? username : "Deleted account";
+    }
+
     public UUID getId() { return id; }
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
     public Role getRole() { return role; }
     public boolean isApproved() { return approved; }
     public boolean isDemo() { return demo; }
+    public int getTokenVersion() { return tokenVersion; }
+    public boolean isDeleted() { return deletedAt != null; }
     public Instant getCreatedAt() { return createdAt; }
 }

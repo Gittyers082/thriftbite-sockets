@@ -77,6 +77,22 @@ class RateLimitTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.code").value("login_locked"));
     }
 
+    /** Otherwise anyone who knows a username could keep its owner locked out. */
+    @Test
+    void wrongGuessesFromOneAddressDontLockTheOwnerOutElsewhere() throws Exception {
+        String username = uniqueName();
+        User user = new User(username, passwordEncoder.encode(PASSWORD), Role.CONSUMER);
+        user.approve();
+        users.save(user);
+
+        for (int i = 0; i < 3; i++) {
+            loginFrom("203.0.113.20", username, "wrong-password-" + i).andExpect(status().isUnauthorized());
+        }
+        loginFrom("203.0.113.20", username, PASSWORD).andExpect(status().isTooManyRequests());
+
+        loginFrom("203.0.113.21", username, PASSWORD).andExpect(status().isOk());
+    }
+
     @Test
     void usernamesThatDontExistArePausedTheSameWay() throws Exception {
         String nobody = uniqueName();
@@ -102,6 +118,15 @@ class RateLimitTest extends ApiTestSupport {
                 .content("""
                         {"username": "%s", "password": "%s", "accountType": "CONSUMER"}
                         """.formatted(username, PASSWORD)));
+    }
+
+    private ResultActions loginFrom(String address, String username, String password) throws Exception {
+        return mvc.perform(post("/api/auth/login")
+                .header("CF-Connecting-IP", address)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"username": "%s", "password": "%s"}
+                        """.formatted(username, password)));
     }
 
     private ResultActions login(String username, String password) throws Exception {

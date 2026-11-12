@@ -29,6 +29,41 @@ export interface RegisterRequest {
   storeName?: string
 }
 
+/** A new account, with its recovery codes. They are shown once and can't be read again. */
+export interface RegisterResponse extends UserResponse {
+  recoveryCodes: string[]
+}
+
+/** After a password reset. With only a code checked (no new password yet), token and user are null. */
+export interface RecoverResponse {
+  token: string | null
+  expiresAt: string | null
+  user: UserResponse | null
+  recoveryCodesLeft: number
+}
+
+/** The account page. */
+export interface AccountSummary {
+  username: string
+  role: Role
+  memberSince: string
+  /** A shared demo account: it can't change its sign-in settings. */
+  demo: boolean
+  recoveryCodesLeft: number
+  recoveryCodesMadeAt: string | null
+  /** Null for store and admin accounts. */
+  buyer: {
+    saved: number
+    mealsSaved: number
+    /** The last three calendar months, oldest first. `month` is "2026-11". */
+    months: { month: string; saved: number }[]
+    /** Not picked up in the last 30 days, newest first. `day` is "2026-11-04". */
+    missedPickups: { storeName: string; day: string }[]
+    activeReservations: number
+    maxActiveReservations: number
+  } | null
+}
+
 export interface ItemResponse {
   id: string
   name: string
@@ -231,7 +266,8 @@ export interface SalesStats {
 }
 
 /** Codes the API puts on errors the screens handle differently. */
-export type ProblemCode = 'rate_limited' | 'login_locked' | 'claim_code_locked' | 'account_not_approved'
+export type ProblemCode =
+  | 'rate_limited' | 'login_locked' | 'claim_code_locked' | 'account_not_approved' | 'recovery_locked' | 'password_locked'
 
 /** RFC 9457 problem details, the shape of every API error. */
 export interface ProblemDetail {

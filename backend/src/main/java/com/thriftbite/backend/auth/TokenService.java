@@ -19,6 +19,7 @@ import java.util.UUID;
 public class TokenService {
 
     static final String ROLES_CLAIM = "roles";
+    static final String VERSION_CLAIM = "ver";
     private static final String ISSUER = "thriftbite";
 
     private final JwtEncoder encoder;
@@ -38,6 +39,8 @@ public class TokenService {
                 .expiresAt(expiresAt)
                 .subject(user.getId().toString())   // the server trusts this, never a user id sent in a request body
                 .claim("username", user.getUsername())
+                // Lets a password change cut off tokens issued before it (CurrentAccountConverter checks).
+                .claim(VERSION_CLAIM, user.getTokenVersion())
                 // For clients to read. The server looks the role up itself (CurrentAccountConverter).
                 .claim(ROLES_CLAIM, List.of(user.getRole().name()))
                 .build();

@@ -69,9 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register: async (request: RegisterRequest) => {
         const created = await api.register(request)
         // Buyers can go straight in; stores wait for an admin.
-        if (created.approved) return start(await api.login(request.username, request.password))
+        if (created.approved) start(await api.login(request.username, request.password))
         return created
       },
+      adopt: start,
       logout,
     }
   }, [user, ready, logout])

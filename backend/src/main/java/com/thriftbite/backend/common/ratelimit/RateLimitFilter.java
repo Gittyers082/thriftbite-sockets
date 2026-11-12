@@ -45,6 +45,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final List<Rule> RULES = List.of(
             new Rule("login", "POST", Pattern.compile("/api/auth/login"), RateLimitProperties::loginPerWindow),
+            new Rule("recover", "POST", Pattern.compile("/api/auth/recover"), RateLimitProperties::loginPerWindow),
             new Rule("register", "POST", Pattern.compile("/api/auth/register"), RateLimitProperties::registerPerWindow),
             new Rule("demo-login", "POST", Pattern.compile("/api/demo/login"), RateLimitProperties::loginPerWindow),
             new Rule("checkout", "POST", Pattern.compile("/api/checkout"), RateLimitProperties::checkoutPerWindow),

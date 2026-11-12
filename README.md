@@ -52,9 +52,15 @@ cd backend
 
 | Method | Endpoint | Who | What it does |
 |---|---|---|---|
-| POST | `/api/auth/register` | anyone | Sign up as `OWNER` or `CONSUMER` (owners need approval) |
+| POST | `/api/auth/register` | anyone | Sign up as `OWNER` or `CONSUMER` (owners need approval). Returns the account's one-time recovery codes |
+| POST | `/api/auth/recover` | anyone | Forgot password: set a new one with a recovery code (leave `newPassword` out to only check the code) |
 | POST | `/api/auth/login` | anyone | Returns a JWT to send as `Authorization: Bearer <token>` |
 | GET | `/api/auth/me` | logged in | The current user |
+| GET | `/api/account` | logged in | The account page: for buyers, money saved and pickup record |
+| POST | `/api/account/password` | logged in | Change the password (logs out every other device) |
+| POST | `/api/account/recovery-codes` | logged in | Make a new set of recovery codes (asks for the password again) |
+| GET | `/api/account/export` | logged in | Download everything kept about the account, as JSON |
+| POST | `/api/account/delete` | consumer | Delete the account (asks for the password again) |
 | GET | `/api/items?q=&page=&size=` | anyone | Browse food for sale, soonest-expiring first |
 | GET | `/api/items/{id}` | anyone | One listing |
 | GET | `/api/stores/{slug}` | anyone | A store's public page: profile, what it has on sale now, and its last 30 days in numbers |
@@ -82,6 +88,16 @@ cd backend
 
 Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`).
 
+### Accounts
+
+ThriftBite never asks for an email or phone number, so there is nothing to send a reset link to. Instead:
+
+- **Recovery codes.** Signing up returns eight one-time codes, shown once. Only their SHA-256 hashes are stored. A code plus a new password resets the account; the check and the "used" mark are one SQL statement, so a code sent twice at the same moment works once.
+- **Logging out everywhere.** Each account has a token version that goes up when the password changes. Tokens carry the version they were issued under, and an older one is refused on the next request.
+- **Asking again.** Making new codes and deleting the account ask for the password again, so a stolen login can't be turned into a permanent takeover.
+- **Your data.** Anyone can download what's kept about them. A buyer can delete their account: anything they're holding goes back on sale, and the account row is scrubbed (no username, no codes, no way to log in) rather than removed, so stores' past sales still add up.
+- **The shared demo accounts** can't change any of this.
+
 ### Stores
 
 Each store has a public page at `/stores/{slug}` with its address and landmark, opening hours, what it has on sale now, and a short track record. The numbers come from the same stock history the sales page uses: meals picked up in the last 30 days, the share of reservations that were picked up, and the time of day the store usually posts. Where there isn't enough history to say something honest (fewer than 5 finished reservations, fewer than 3 posts), the page says nothing.
@@ -106,14 +122,15 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 
 - A buyer holds at most **2 reservations** at a time.
 - **5 wrong claim codes** on one reservation pause code entry for 15 minutes.
-- **5 wrong passwords** in a row pause that username for 15 minutes.
+- **5 wrong passwords** from one address pause that username for that address for 15 minutes; 20 from anywhere pause it for everyone. Counting per address means a stranger who knows a username can't lock its owner out. The same limit applies to recovery codes and to the "current password" box.
 - Per-address limits on log in, sign-up, checkout and claim-code entry return `429` with `Retry-After`. Every other API call shares a generous per-address limit (1,200 per 10 minutes), so a script can't flood the API.
 - Live connections: 500 at once in total, 60 from one address, and 300 opened per address per 10 minutes.
 
 ### Security notes
 
 - **Passwords** are stored as BCrypt hashes. A failed login takes the same time and gives the same message whether or not the username exists.
-- **Tokens** are signed JWTs that last 8 hours. The token only says who is asking: the role and approval are read from the database on every request, so deleting an account or changing its role takes effect at once.
+- **Tokens** are signed JWTs that last 8 hours. The token only says who is asking: the role, approval and token version are read from the database on every request, so deleting an account, changing its role or changing its password takes effect at once.
+- **Recovery codes** are 12 random characters, stored only as hashes. A fast hash is enough because nobody chose them (there's no dictionary to try), and guessing against the live site is stopped by the attempt limits. A wrong code and a username that doesn't exist get the same answer.
 - **Every lookup is scoped to the caller.** The user id comes from the verified token, never from the request, and a store can only reach its own listings and pickups.
 - **Rate limits use the visitor's own address.** Behind Render that is the `CF-Connecting-IP` header (set in `render.yaml`); `X-Forwarded-For` can be faked there.
 - **The demo admin is boxed in.** Anyone can log in as it, so it only sees and approves the demo's sample stores.

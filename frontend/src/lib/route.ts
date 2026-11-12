@@ -20,6 +20,8 @@ export const paths = {
   sales: '/owner/sales',
   admin: '/admin',
   privacy: '/privacy',
+  account: '/me',
+  recover: '/recover',
 } as const
 
 export function href(path: string): string {

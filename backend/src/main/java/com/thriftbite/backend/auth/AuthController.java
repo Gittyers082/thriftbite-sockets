@@ -1,6 +1,11 @@
 package com.thriftbite.backend.auth;
 
 import com.thriftbite.backend.auth.dto.LoginRequest;
+import com.thriftbite.backend.auth.dto.RecoverRequest;
+import com.thriftbite.backend.auth.dto.RecoverResponse;
+import com.thriftbite.backend.auth.dto.RegisterResponse;
+import com.thriftbite.backend.common.ratelimit.ClientAddress;
+import jakarta.servlet.http.HttpServletRequest;
 import com.thriftbite.backend.auth.dto.LoginResponse;
 import com.thriftbite.backend.auth.dto.RegisterRequest;
 import com.thriftbite.backend.auth.dto.UserResponse;
@@ -20,20 +25,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService auth;
+    private final ClientAddress clientAddress;
 
-    public AuthController(AuthService auth) {
+    public AuthController(AuthService auth, ClientAddress clientAddress) {
         this.auth = auth;
+        this.clientAddress = clientAddress;
     }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
+    public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
         return auth.register(request);
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return auth.login(request);
+    public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        return auth.login(request, clientAddress.of(http));
+    }
+
+    /**
+     * Forgot your password: set a new one with a recovery code. Leave {@code newPassword}
+     * out to only check the code first.
+     */
+    @PostMapping("/recover")
+    public RecoverResponse recover(@Valid @RequestBody RecoverRequest request) {
+        return auth.recover(request);
     }
 
     /** Who am I? The id comes from the verified token, not from anything the client sends. */

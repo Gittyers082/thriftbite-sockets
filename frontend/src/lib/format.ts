@@ -102,6 +102,14 @@ export function clockWindow(start: string, end: string): string {
   return a.slice(-2) === b.slice(-2) ? `${a.slice(0, -3)} to ${b}` : `${a} to ${b}`
 }
 
+/** "2026-11" -> "Nov", and "2026-09-14T..." -> "Sep 2026" */
+export function monthShort(month: string): string {
+  return new Date(month.slice(0, 7) + '-01T00:00:00Z').toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short' })
+}
+export function monthAndYear(iso: string): string {
+  return new Intl.DateTimeFormat('en-PH', { timeZone: ZONE, month: 'short', year: 'numeric' }).format(new Date(iso))
+}
+
 /** "16:39:00" -> "4:39 PM" */
 export function clockOf(localTime: string): string {
   const [h, m] = localTime.split(':').map(Number)

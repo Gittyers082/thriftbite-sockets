@@ -1,6 +1,6 @@
 import type {
-  BatchListingRequest, CartResponse, DemoInfo, DemoRole, ItemRequest, ItemResponse, LoginResponse, PageResponse,
-  ProblemCode, ProblemDetail, RegisterRequest, ReservationResponse, SalesStats, StorePage, StoreProfile,
+  AccountSummary, BatchListingRequest, CartResponse, DemoInfo, DemoRole, ItemRequest, ItemResponse, LoginResponse, PageResponse,
+  ProblemCode, ProblemDetail, RecoverResponse, RegisterRequest, RegisterResponse, ReservationResponse, SalesStats, StorePage, StoreProfile,
   StoreProfileRequest, UserResponse, UsualListing,
 } from './types'
 
@@ -81,7 +81,19 @@ function defaultMessage(status: number): string {
 }
 
 export const api = {
-  register: (body: RegisterRequest) => request<UserResponse>('POST', '/api/auth/register', body),
+  register: (body: RegisterRequest) => request<RegisterResponse>('POST', '/api/auth/register', body),
+  /** Forgot password. Without `newPassword` it only checks the code; with it, the password is changed and you're logged in. */
+  recover: (username: string, recoveryCode: string, newPassword?: string) =>
+    request<RecoverResponse>('POST', '/api/auth/recover', { username, recoveryCode, newPassword }),
+
+  account: () => request<AccountSummary>('GET', '/api/account'),
+  /** Logs out every other device; the answer is a fresh login for this one. */
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<LoginResponse>('POST', '/api/account/password', { currentPassword, newPassword }),
+  newRecoveryCodes: (password: string) => request<{ codes: string[] }>('POST', '/api/account/recovery-codes', { password }),
+  /** Everything kept about this account, as JSON. */
+  exportData: () => request<unknown>('GET', '/api/account/export'),
+  deleteAccount: (password: string) => request<void>('POST', '/api/account/delete', { password }),
   login: (username: string, password: string) =>
     request<LoginResponse>('POST', '/api/auth/login', { username, password }),
   me: () => request<UserResponse>('GET', '/api/auth/me'),

@@ -1,8 +1,9 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { ApiError, api } from '../api/client'
-import type { DemoRole } from '../api/types'
+import type { DemoRole, RegisterResponse } from '../api/types'
 import thryxFull from '../assets/thryx-full.png'
 import thryxHead from '../assets/thryx-head.png'
+import { RecoveryCodeList } from '../components/RecoveryCodeList'
 import { messageOf } from '../lib/errors'
 import { homeFor, useAuth } from '../lib/auth-context'
 import { href, navigate, paths } from '../lib/route'
@@ -26,6 +27,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const [agreed, setAgreed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [made, setMade] = useState<RegisterResponse | null>(null)
   const signup = mode === 'signup'
 
   const submit = async (e: FormEvent) => {
@@ -35,10 +37,10 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     setBusy(true)
     try {
       if (signup) {
-        const user = await auth.register({
+        // Before going anywhere, show the recovery codes: this is the only time they can be read.
+        setMade(await auth.register({
           username, password, accountType, storeName: accountType === 'OWNER' ? storeName.trim() || undefined : undefined,
-        })
-        navigate(user.approved ? homeFor(user) : paths.pending)
+        }))
       } else {
         navigate(homeFor(await auth.login(username, password)))
       }
@@ -78,6 +80,21 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
         <img src={thryxFull} alt="Thryx, the ThriftBite mascot, holding a burger" width={170} height={167}
           style={{ width: 170, marginBottom: -30, position: 'relative', zIndex: 1 }} />
         <div className="card stack" style={gap(20, { width: '100%', maxWidth: 460, padding: '40px 28px 28px' })}>
+          {made ? (
+            <div className="stack" style={gap(16)}>
+              <div className="stack" style={gap(6, { textAlign: 'center' })}>
+                <h1 className="wide" style={{ fontSize: 28, lineHeight: '32px' }}>Save your recovery codes</h1>
+                <p className="muted">
+                  ThriftBite doesn’t ask for your email or phone number. If you forget your password, one of these codes is the only way back in.
+                </p>
+              </div>
+              <RecoveryCodeList codes={made.recoveryCodes} username={made.username} />
+              <p className="small"><strong>They won’t be shown again.</strong> Each code works once. You can make new ones from your account page.</p>
+              <button type="button" className="btn teal big" onClick={() => navigate(made.approved ? homeFor(made) : paths.pending)}>
+                I’ve saved them, continue
+              </button>
+            </div>
+          ) : (<>
           <div className="stack" style={gap(6, { textAlign: 'center' })}>
             <h1 className="wide" style={{ fontSize: 28, lineHeight: '32px' }}>{signup ? 'Join ThriftBite' : 'Welcome back'}</h1>
             <p className="muted">{signup ? 'Takes a minute. No card needed.' : 'Log in to reserve tonight’s surplus.'}</p>
@@ -99,7 +116,9 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
               <input id="password" className="input" type="password" required minLength={signup ? 8 : 1} maxLength={72}
                 autoComplete={signup ? 'new-password' : 'current-password'}
                 value={password} onChange={(e) => setPassword(e.target.value)} aria-describedby={signup ? 'pw-rule' : undefined} />
-              {signup && <span id="pw-rule" className="hint">At least 8 characters.</span>}
+              {signup
+                ? <span id="pw-rule" className="hint">At least 8 characters.</span>
+                : <a className="small" href={href(paths.recover)} style={{ fontWeight: 600 }}>Forgot your password?</a>}
             </div>
 
             {signup && (
@@ -149,6 +168,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
               </div>
             </div>
           )}
+          </>)}
         </div>
         <p style={{ marginTop: 24, color: '#fff', textAlign: 'center', maxWidth: 460 }}>
           End-of-day food from Baguio bakeries and carinderias, at a portion of the usual price.

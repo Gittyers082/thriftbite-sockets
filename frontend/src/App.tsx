@@ -8,10 +8,12 @@ import { Admin } from './pages/Admin'
 import { Auth } from './pages/Auth'
 import { Browse } from './pages/Browse'
 import { Cart } from './pages/Cart'
-import { Me, NotFound, Pending, Privacy } from './pages/Info'
+import { Account } from './pages/Account'
+import { NotFound, Pending, Privacy } from './pages/Info'
 import { NewListing } from './pages/NewListing'
 import { OwnerToday } from './pages/OwnerToday'
 import { Pickup } from './pages/Pickup'
+import { Recover } from './pages/Recover'
 import { PostAgain } from './pages/PostAgain'
 import { Reservations } from './pages/Reservations'
 import { Sales } from './pages/Sales'
@@ -26,6 +28,12 @@ function Only({ role, children }: { role: Role; children: ReactNode }) {
   if (!user) return <NeedsAccount what="login" />
   if (user.role !== role) return <NeedsAccount what={needs[role]} />
   return <>{children}</>
+}
+
+/** Shows the page to anyone who's logged in. */
+function SignedIn({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
+  return user ? <>{children}</> : <NeedsAccount what="login" />
 }
 
 function page(path: string): ReactNode {
@@ -46,7 +54,8 @@ function page(path: string): ReactNode {
     case paths.admin: return <Only role="ADMIN"><Admin /></Only>
     case paths.pending: return <Pending />
     case paths.privacy: return <Privacy />
-    case '/me': return <Me />
+    case paths.account: return <SignedIn><Account /></SignedIn>
+    case paths.recover: return <Recover />
     default: return <NotFound />
   }
 }
