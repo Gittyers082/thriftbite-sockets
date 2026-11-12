@@ -302,3 +302,15 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; }
 .months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: end; height: 150px; }
 .months .col { display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; height: 100%; text-align: center; }
 .months .bar-fill { border: 2px solid var(--ink); background: var(--teal); min-height: 4px; }
+
+/* nav: unread count */
+.count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: 6px;
+  background: var(--orange); color: var(--ink); border: 2px solid var(--ink); font-size: 12px; font-weight: 800; line-height: 1; vertical-align: middle; }
+.tabbar .count { margin-left: 4px; min-width: 18px; height: 18px; font-size: 11px; }
+
+/* alerts and followed stores */
+.alert-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; align-items: start; }
+.alert-row .tag { justify-self: start; }
+.follow-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.chip.on { background: var(--lime); }
+@media (max-width: 760px) { .alert-row { grid-template-columns: minmax(0, 1fr); gap: 8px; } }

@@ -12,6 +12,7 @@ import java.util.List;
  * Parts that don't apply to the kind of account are null.
  *
  * @param reservations buyers: every reservation, with claim codes
+ * @param following    buyers: the stores they follow
  * @param store        stores: the store profile
  * @param listings     stores: every listing that hasn't been taken down
  */
@@ -19,6 +20,7 @@ public record AccountExport(
         Instant exportedAt,
         AccountResponse account,
         List<ReservationResponse> reservations,
+        List<String> following,
         StoreResponse store,
         List<ItemResponse> listings
 ) {

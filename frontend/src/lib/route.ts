@@ -8,6 +8,7 @@ export const paths = {
   browse: '/',
   cart: '/cart',
   reservations: '/reservations',
+  following: '/following',
   pickup: (reservationId: string) => `/pickup/${reservationId}`,
   login: '/login',
   signup: '/signup',

@@ -64,6 +64,12 @@ cd backend
 | GET | `/api/items?q=&page=&size=` | anyone | Browse food for sale, soonest-expiring first |
 | GET | `/api/items/{id}` | anyone | One listing |
 | GET | `/api/stores/{slug}` | anyone | A store's public page: profile, what it has on sale now, and its last 30 days in numbers |
+| PUT | `/api/stores/{slug}/follow` | consumer | Follow a store, or turn its alerts on or off (`{"alertsOn": false}`) |
+| DELETE | `/api/stores/{slug}/follow` | consumer | Unfollow |
+| GET | `/api/follows` | consumer | The stores you follow |
+| GET | `/api/alerts` | consumer | Your alerts from the last two weeks, with the unread count |
+| GET | `/api/alerts/count` | consumer | Just the unread count, for the number on the nav |
+| POST | `/api/alerts/read`, `/api/alerts/{id}/read` | consumer | Mark all, or one, as read |
 | GET | `/api/owner/items` | owner | Your own listings |
 | POST | `/api/owner/items` | owner | Create a listing |
 | PUT | `/api/owner/items/{id}` | owner | Edit a listing (send the `version` you loaded) |
@@ -106,12 +112,22 @@ Each store has a public page at `/stores/{slug}` with its address and landmark, 
 
 A store that hasn't been approved yet has no public page.
 
+### Following and alerts
+
+A buyer can follow a store and gets an alert when it posts food. Buyers also get alerts about their own pickups: a reminder when they reserve, what they saved when the food is handed over, and a plain note if they miss it.
+
+- **Written with the change.** An alert is inserted in the same transaction as the listing or reservation it reports, so there is never one for something that rolled back. "Everyone who follows this store" is a single `INSERT ... SELECT`, however many followers there are.
+- **One alert per store per day.** A store posting five listings in an afternoon rewrites one alert ("posted 5 deals") instead of sending five. A partial unique index and `ON CONFLICT ... DO UPDATE` do this in the database.
+- **Reminders don't linger.** The pickup reminder is removed when the reservation is picked up, cancelled or missed.
+- **Kept for 30 days**, then deleted by the same housekeeping run that expires food.
+- The number on the nav follows the live connection: a new alert, or reading one on another device, updates it.
+
 ### Live updates
 
 Open screens update on their own over a WebSocket at `/ws`: a stock count drops on every browse page when someone reserves, a new reservation appears on the store's counter screen, and a buyer's ticket flips to "picked up" when the store hands the food over.
 
 - **Sent only after commit.** Services publish a change inside their transaction; it goes out only once that transaction commits (`@TransactionalEventListener`). A checkout that rolls back because something sold out announces nothing.
-- **Messages are hints, not data.** Apart from a listing's public stock count, a message only says which part of the screen is out of date (`store`, `reservations`, `deals`, `approvals`), and the screen reloads it through the normal API. Nothing private travels over the socket, and the app still works when the socket is down.
+- **Messages are hints, not data.** Apart from a listing's public stock count, a message only says which part of the screen is out of date (`store`, `reservations`, `alerts`, `deals`, `approvals`), and the screen reloads it through the normal API. Nothing private travels over the socket, and the app still works when the socket is down.
 - **Logging in.** A connection starts anonymous and hears public stock changes. The frontend then sends `{"type":"auth","token":"..."}` as its first message; the token is checked exactly like on an API call. It isn't put in the URL, because URLs end up in logs.
 - **Staying connected.** The server pings every 25 seconds so proxies keep the connection open. The frontend reconnects with a growing delay, reloads what it may have missed, and lets go of the connection when the tab has been hidden for a minute.
 - **One instance.** Connections are kept in memory. With several instances, changes would have to be passed between them (for example with Redis pub/sub).

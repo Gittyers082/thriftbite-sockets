@@ -2,6 +2,7 @@ package com.thriftbite.backend.demo;
 
 import com.thriftbite.backend.live.LiveChange.DealsChanged;
 import org.springframework.context.ApplicationEventPublisher;
+import com.thriftbite.backend.alert.Alerts;
 import com.thriftbite.backend.item.Item;
 import com.thriftbite.backend.item.ItemRepository;
 import com.thriftbite.backend.reservation.Reservation;
@@ -71,6 +72,7 @@ public class DemoData implements ApplicationRunner {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final ApplicationEventPublisher live;
+    private final Alerts alerts;
     private final String keepAdmin;
     private final Duration maxAge;
 
@@ -78,7 +80,7 @@ public class DemoData implements ApplicationRunner {
 
     public DemoData(UserRepository users, ItemRepository items, ReservationRepository reservations,
                     PasswordEncoder passwordEncoder, StoreService stores, JdbcTemplate jdbc,
-                    PlatformTransactionManager transactions, ApplicationEventPublisher live,
+                    PlatformTransactionManager transactions, ApplicationEventPublisher live, Alerts alerts,
                     @Value("${app.admin.username:}") String bootstrapAdmin,
                     @Value("${app.demo.max-age:PT6H}") Duration maxAge) {
         this.users = users;
@@ -89,6 +91,7 @@ public class DemoData implements ApplicationRunner {
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(transactions);
         this.live = live;
+        this.alerts = alerts;
         this.keepAdmin = bootstrapAdmin == null ? "" : bootstrapAdmin.trim().toLowerCase(Locale.ROOT);
         this.maxAge = maxAge;
     }
@@ -248,6 +251,30 @@ public class DemoData implements ApplicationRunner {
         pickedUp(buyer, lola.store(), "660913", pinakbet, 1, now.minus(Duration.ofDays(40)));
         pickedUp(buyer, burnham.store(), "239874", taho, 2, now.minus(Duration.ofDays(55)));
         pickedUp(buyer, pinegrove.store(), "781245", bananaBread, 1, now.minus(Duration.ofDays(61)));
+
+        // The buyer follows three stores and has alerts waiting; a few regulars follow the bakery too.
+        for (Store followed : List.of(sunrise, lola.store(), pinegrove.store())) {
+            jdbc.update("INSERT INTO store_follows (user_id, store_id) VALUES (?, ?)", buyer.getId(), followed.getId());
+        }
+        for (User regular : regulars) {
+            jdbc.update("INSERT INTO store_follows (user_id, store_id) VALUES (?, ?)", regular.getId(), sunrise.getId());
+        }
+        alerts.missed(missed.getId());
+        alerts.pickedUp(yesterday.getId());
+        // those two are old news: dated when they happened, and already read
+        jdbc.update("""
+                UPDATE alerts a SET created_at = COALESCE(r.completed_at, r.expired_at), read_at = now()
+                  FROM reservations r WHERE r.id = a.reservation_id AND a.user_id = ?
+                """, buyer.getId());
+        alerts.dealsPosted(pinegrove.store().getId());
+        alerts.dealsPosted(lola.store().getId());
+        alerts.dealsPosted(sunrise.getId());
+        alerts.reserved(mine.getId());
+        // staggered through the afternoon: each store posting, then the pickup reminder
+        String posted = "UPDATE alerts SET created_at = now() - ?::interval WHERE user_id = ? AND store_id = ? AND kind = 'DEAL'";
+        jdbc.update(posted, "40 minutes", buyer.getId(), sunrise.getId());
+        jdbc.update(posted, "85 minutes", buyer.getId(), lola.store().getId());
+        jdbc.update(posted, "2 hours", buyer.getId(), pinegrove.store().getId());
 
         // The buyer has been around as long as their history.
         jdbc.update("UPDATE users SET created_at = ? WHERE id = ?",

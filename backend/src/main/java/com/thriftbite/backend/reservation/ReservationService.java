@@ -4,6 +4,7 @@ import com.thriftbite.backend.live.LiveChange.ReservationsChanged;
 import com.thriftbite.backend.live.LiveChange.StoreChanged;
 import com.thriftbite.backend.live.LiveChange.ItemChanged;
 import org.springframework.context.ApplicationEventPublisher;
+import com.thriftbite.backend.alert.Alerts;
 import com.thriftbite.backend.cart.CartItem;
 import com.thriftbite.backend.cart.CartItemRepository;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
@@ -51,6 +52,7 @@ public class ReservationService {
     private final StoreRepository storeRepository;
     private final StoreService stores;
     private final StockEvents events;
+    private final Alerts alerts;
     private final ApplicationEventPublisher live;
     private final int maxActivePerBuyer;
     private final int maxCodeAttempts;
@@ -59,7 +61,7 @@ public class ReservationService {
     public ReservationService(CartItemRepository cart, ItemRepository items,
                               ReservationRepository reservations, UserRepository users,
                               StoreRepository storeRepository, StoreService stores, StockEvents events,
-                              ApplicationEventPublisher live,
+                              Alerts alerts, ApplicationEventPublisher live,
                               @Value("${app.reservations.max-active-per-buyer:2}") int maxActivePerBuyer,
                               @Value("${app.reservations.max-code-attempts:5}") int maxCodeAttempts,
                               @Value("${app.reservations.code-lock:PT15M}") Duration codeLock) {
@@ -70,6 +72,7 @@ public class ReservationService {
         this.storeRepository = storeRepository;
         this.stores = stores;
         this.events = events;
+        this.alerts = alerts;
         this.live = live;
         this.maxActivePerBuyer = maxActivePerBuyer;
         this.maxCodeAttempts = maxCodeAttempts;
@@ -162,6 +165,8 @@ public class ReservationService {
         }
 
         cart.deleteAllForUser(buyerId);
+        reservations.flush();   // the alerts below are written with plain SQL, which needs the rows to exist
+        created.forEach(reservation -> alerts.reserved(reservation.getId()));
         reservationIdByStore.keySet().forEach(storeId -> live.publishEvent(new StoreChanged(storeId)));
         live.publishEvent(new ReservationsChanged(buyerId));
         return created.stream().map(ReservationResponse::forBuyer).toList();
@@ -186,6 +191,7 @@ public class ReservationService {
 
         Instant now = Instant.now();
         reservation.cancel(now);
+        alerts.cancelled(reservationId);
         ReservationResponse response = ReservationResponse.forBuyer(reservation);
         live.publishEvent(new StoreChanged(reservation.getStore().getId()));
         live.publishEvent(new ReservationsChanged(buyerId));
@@ -205,6 +211,7 @@ public class ReservationService {
         List<Reservation> missed = reservations.findByStatusAndPickupDeadlineBefore(ReservationStatus.RESERVED, now);
         missed.forEach(reservation -> {
             reservation.expire(now);
+            alerts.missed(reservation.getId());
             live.publishEvent(new StoreChanged(reservation.getStore().getId()));
             live.publishEvent(new ReservationsChanged(reservation.getBuyer().getId()));
         });
@@ -255,6 +262,7 @@ public class ReservationService {
                     : "Wrong claim code. " + left + (left == 1 ? " try" : " tries") + " left.");
         }
         reservation.complete(now);
+        alerts.pickedUp(reservationId);
         // The buyer's ticket flips to "picked up" while they're still at the counter.
         live.publishEvent(new StoreChanged(storeId));
         live.publishEvent(new ReservationsChanged(reservation.getBuyer().getId()));

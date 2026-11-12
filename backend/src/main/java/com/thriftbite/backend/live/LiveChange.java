@@ -27,6 +27,10 @@ public sealed interface LiveChange {
     record ReservationsChanged(UUID buyerId) implements LiveChange {
     }
 
+    /** A buyer got a new alert, or one went away. Sent to that buyer's own screens. */
+    record AlertsChanged(UUID userId) implements LiveChange {
+    }
+
     /** The list of stores waiting for approval changed. Sent to admins. */
     record ApprovalsChanged() implements LiveChange {
     }

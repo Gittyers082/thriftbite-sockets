@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import thryxHead from '../assets/thryx-head.png'
 import { homeFor, useAuth } from '../lib/auth-context'
 import { href, paths, useRoute } from '../lib/route'
+import { useUnreadAlerts } from '../lib/useUnreadAlerts'
 import { Icon, type IconName } from './Icon'
 
 interface NavItem {
@@ -10,11 +11,13 @@ interface NavItem {
   icon: IconName
   /** A shorter name for the phone's tab bar. */
   short?: string
+  /** A number to show beside the label, when it's above zero (unread alerts). */
+  badge?: number
   /** Left off the phone's tab bar (five tabs is the most that fits); reached from another screen instead. */
   desktopOnly?: boolean
 }
 
-function navFor(role: string | undefined): NavItem[] {
+function navFor(role: string | undefined, unread: number): NavItem[] {
   if (role === 'OWNER') {
     return [
       { label: 'Today', path: paths.owner, icon: 'today' },
@@ -27,11 +30,21 @@ function navFor(role: string | undefined): NavItem[] {
   if (role === 'ADMIN') {
     return [{ label: 'Store approvals', path: paths.admin, icon: 'store' }]
   }
+  const following: NavItem[] = role === 'CONSUMER'
+    ? [{ label: 'Following', short: 'Alerts', path: paths.following, icon: 'bell', badge: unread }]
+    : []
   return [
     { label: 'Browse', path: paths.browse, icon: 'browse' },
+    ...following,
     { label: 'Cart', path: paths.cart, icon: 'cart' },
     { label: 'Reservations', path: paths.reservations, icon: 'ticket' },
   ]
+}
+
+/** The number beside a nav label. Screen readers get it as words. */
+function Badge({ count }: { count: number | undefined }) {
+  if (!count) return null
+  return <><span className="count" aria-hidden="true">{count > 99 ? '99+' : count}</span><span className="sr"> ({count} new)</span></>
 }
 
 const avatarColor: Record<string, string> = { OWNER: 'var(--orange)', ADMIN: 'var(--ink)', CONSUMER: 'var(--lime)' }
@@ -40,7 +53,8 @@ const avatarColor: Record<string, string> = { OWNER: 'var(--orange)', ADMIN: 'va
 export function AppFrame({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const path = useRoute()
-  const nav = navFor(user?.role)
+  const unread = useUnreadAlerts(user?.role === 'CONSUMER')
+  const nav = navFor(user?.role, unread)
   // The longest matching path wins, so "Today" (/owner) isn't lit on /owner/sales.
   const current = nav.filter((item) => item.path === path || (item.path !== '/' && path.startsWith(item.path + '/')))
     .sort((a, b) => b.path.length - a.path.length)[0]?.path ?? path
@@ -62,7 +76,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           <nav className="links" aria-label={ownerArea ? 'Store' : 'Main'}>
             {nav.filter((item) => ownerArea || item.path !== paths.cart).map((item) => (
               <a key={item.path} href={href(item.path)} aria-current={isCurrent(item) ? 'page' : undefined}>
-                {item.label}
+                {item.label}<Badge count={item.badge} />
               </a>
             ))}
           </nav>
@@ -91,7 +105,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
         {[...nav.filter((item) => !item.desktopOnly), meTab].map((item) => (
           <a key={item.path} href={href(item.path)} aria-current={isCurrent(item) ? 'page' : undefined}>
             <Icon name={item.icon} />
-            <span>{item.short ?? item.label}</span>
+            <span>{item.short ?? item.label}<Badge count={item.badge} /></span>
           </a>
         ))}
       </nav>

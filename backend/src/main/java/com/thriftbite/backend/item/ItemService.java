@@ -3,6 +3,7 @@ package com.thriftbite.backend.item;
 import com.thriftbite.backend.live.LiveChange.StoreChanged;
 import com.thriftbite.backend.live.LiveChange.ItemChanged;
 import org.springframework.context.ApplicationEventPublisher;
+import com.thriftbite.backend.alert.Alerts;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
@@ -36,11 +37,13 @@ public class ItemService {
     private final StoreService stores;
     private final StockEvents events;
     private final UsualListings usualListings;
+    private final Alerts alerts;
     private final ApplicationEventPublisher live;
 
     public ItemService(ItemRepository items, UserRepository users, StoreRepository storeRepository,
-                       StoreService stores, StockEvents events, UsualListings usualListings,
+                       StoreService stores, StockEvents events, UsualListings usualListings, Alerts alerts,
                        ApplicationEventPublisher live) {
+        this.alerts = alerts;
         this.items = items;
         this.users = users;
         this.storeRepository = storeRepository;
@@ -89,6 +92,7 @@ public class ItemService {
                 request.expiresAt(), request.pickupLocation().trim(),
                 request.pickupStart(), request.pickupEnd()));
         events.record(item.getId(), StockEventType.LISTED, item.getQuantity(), null, userId);
+        alerts.dealsPosted(storeId);   // the store's followers hear about it
         tellOpenScreens(item.getId(), storeId);
         return ItemResponse.from(item);
     }

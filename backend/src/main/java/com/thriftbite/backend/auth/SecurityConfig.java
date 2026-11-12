@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/cart/**", "/api/checkout", "/api/reservations/**").hasRole("CONSUMER")
+                        .requestMatchers("/api/follows", "/api/stores/*/follow", "/api/alerts/**").hasRole("CONSUMER")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         // The role comes from the database on every request, not from the token.

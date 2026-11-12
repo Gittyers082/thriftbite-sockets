@@ -189,8 +189,46 @@ export interface StorePage {
   store: StoreProfile
   /** On sale or just sold out, not yet expired. */
   items: ItemResponse[]
-  /** Counted over the last 30 days. The nulls mean "not enough history to say". */
-  stats: { mealsRescued: number; pickupRate: number | null; usualPostTime: string | null }
+  /** Counted over the last 30 days (followers: right now). The nulls mean "not enough history to say". */
+  stats: { mealsRescued: number; pickupRate: number | null; usualPostTime: string | null; followers: number }
+  /** How the buyer looking at the page relates to the store. Null for visitors, stores and admins. */
+  viewer: FollowState | null
+}
+
+export interface FollowState {
+  following: boolean
+  /** False means following quietly: the store is on your list but doesn't alert you. */
+  alertsOn: boolean
+}
+
+/** A store the buyer follows. */
+export interface FollowedStore {
+  storeId: string
+  slug: string
+  name: string
+  /** The barangay, or the street address if the store hasn't given one. */
+  area: string | null
+  /** "15:30:00" Manila time; null until the store has posted a few times. */
+  usualPostTime: string | null
+  alertsOn: boolean
+}
+
+export type AlertKind = 'DEAL' | 'PICKUP' | 'PICKED_UP' | 'MISSED'
+
+export interface AlertItem {
+  id: string
+  kind: AlertKind
+  title: string
+  body: string
+  /** A page in the app, e.g. "/stores/sunrise-bakery". */
+  link: string
+  createdAt: string
+  read: boolean
+}
+
+export interface AlertList {
+  unread: number
+  alerts: AlertItem[]
 }
 
 /** Something the store has listed before, and how it went last time. */

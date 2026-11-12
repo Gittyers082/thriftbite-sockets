@@ -14,6 +14,7 @@ import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.common.ApiExceptions.TooManyRequestsException;
 import com.thriftbite.backend.common.ratelimit.LoginAttempts;
+import com.thriftbite.backend.follow.FollowService;
 import com.thriftbite.backend.item.ItemService;
 import com.thriftbite.backend.reservation.ReservationService;
 import com.thriftbite.backend.reservation.ReservationStatus;
@@ -49,13 +50,14 @@ public class AccountService {
     private final CartItemRepository cart;
     private final ItemService items;
     private final StoreProfileService storeProfiles;
+    private final FollowService follows;
     private final JdbcTemplate jdbc;
     private final int maxActiveReservations;
 
     public AccountService(UserRepository users, RecoveryCodes recoveryCodes, PasswordEncoder passwordEncoder,
                           LoginAttempts attempts, TokenService tokens, ReservationService reservations,
                           CartItemRepository cart, ItemService items, StoreProfileService storeProfiles,
-                          JdbcTemplate jdbc,
+                          FollowService follows, JdbcTemplate jdbc,
                           @Value("${app.reservations.max-active-per-buyer:2}") int maxActiveReservations) {
         this.users = users;
         this.recoveryCodes = recoveryCodes;
@@ -66,6 +68,7 @@ public class AccountService {
         this.cart = cart;
         this.items = items;
         this.storeProfiles = storeProfiles;
+        this.follows = follows;
         this.jdbc = jdbc;
         this.maxActiveReservations = maxActiveReservations;
     }
@@ -108,10 +111,11 @@ public class AccountService {
     public AccountExport export(UUID userId) {
         AccountResponse account = summary(userId);
         return switch (account.role()) {
-            case CONSUMER -> new AccountExport(Instant.now(), account, reservations.listForBuyer(userId), null, null);
-            case OWNER -> new AccountExport(Instant.now(), account, null,
+            case CONSUMER -> new AccountExport(Instant.now(), account, reservations.listForBuyer(userId),
+                    follows.followed(userId).stream().map(FollowService.Followed::name).toList(), null, null);
+            case OWNER -> new AccountExport(Instant.now(), account, null, null,
                     storeProfiles.mine(userId), items.listMine(userId));
-            case ADMIN -> new AccountExport(Instant.now(), account, null, null, null);
+            case ADMIN -> new AccountExport(Instant.now(), account, null, null, null, null);
         };
     }
 
@@ -135,6 +139,7 @@ public class AccountService {
                 .forEach(reservationId -> reservations.cancel(userId, reservationId));
         cart.deleteAllForUser(userId);
         recoveryCodes.deleteAll(userId);
+        follows.forget(userId);   // who they followed, and their alerts
 
         // cancel() cleared Hibernate's session, so load the account again before changing it.
         User fresh = account(userId);

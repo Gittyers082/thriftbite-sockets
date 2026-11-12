@@ -1,11 +1,12 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { ApiError, api } from '../api/client'
-import type { StoreProfile } from '../api/types'
+import type { FollowState, StoreProfile } from '../api/types'
 import { DealCard } from '../components/DealCard'
 import { LiveBadge } from '../components/LiveBadge'
 import { Loading, ProblemPanel } from '../components/States'
+import { messageOf } from '../lib/errors'
 import { clockOf, clockWindow, manilaClock, manilaDate, percent, peso, plural, weekdayOf } from '../lib/format'
-import { href, paths } from '../lib/route'
+import { href, navigate, paths } from '../lib/route'
 import { gap } from '../lib/style'
 import { useCart } from '../lib/useCart'
 import { useLiveStock } from '../lib/useLiveStock'
@@ -35,6 +36,11 @@ export function StorePage({ slug }: { slug: string }) {
     useCallback((change) => mutate((page) => ({ ...page, items: change(page.items) })), [mutate]),
     loaded.reload)
 
+  // Following: what the page loaded with, until the buyer taps the button.
+  const [changed, setChanged] = useState<FollowState | null>(null)
+  const [followBusy, setFollowBusy] = useState(false)
+  const [followProblem, setFollowProblem] = useState<string | null>(null)
+
   if (loaded.error instanceof ApiError && loaded.error.status === 404) return <NotFound />
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading label="Loading the store…" />
@@ -45,6 +51,35 @@ export function StorePage({ slug }: { slug: string }) {
   const mapQuery = encodeURIComponent([store.name, store.address, store.barangay, 'Baguio City'].filter(Boolean).join(', '))
   const onSale = items.filter((item) => item.status === 'AVAILABLE' && item.quantity > 0).length
   const mine = cart?.lines.filter((line) => line.storeId === store.id) ?? []
+  const follow = changed ?? loaded.data.viewer
+  const isBuyer = loggedIn && canReserve
+
+  const toggleFollow = async () => {
+    if (!loggedIn) return navigate(paths.login)
+    setFollowProblem(null)
+    setFollowBusy(true)
+    try {
+      if (follow?.following) {
+        await api.unfollow(slug)
+        setChanged({ following: false, alertsOn: false })
+      } else {
+        setChanged(await api.follow(slug))
+      }
+      // the follower count on the page moves with it
+      const step = follow?.following ? -1 : 1
+      mutate((page) => ({ ...page, stats: { ...page.stats, followers: Math.max(0, page.stats.followers + step) } }))
+    } catch (error) {
+      setFollowProblem(messageOf(error))
+    } finally {
+      setFollowBusy(false)
+    }
+  }
+
+  const record = [
+    stats.mealsRescued > 0 && { value: stats.mealsRescued.toLocaleString('en-PH'), label: `${stats.mealsRescued === 1 ? 'meal' : 'meals'} rescued in the last 30 days` },
+    stats.pickupRate != null && { value: percent(stats.pickupRate), label: 'of reservations were picked up' },
+    stats.followers > 0 && { value: stats.followers.toLocaleString('en-PH'), label: stats.followers === 1 ? 'follower' : 'followers' },
+  ].filter((entry): entry is { value: string; label: string } => Boolean(entry))
 
   return (
     <div className="stack" style={gap(28)}>
@@ -67,27 +102,37 @@ export function StorePage({ slug }: { slug: string }) {
           <span className="tag">{store.gcashAccepted ? 'Cash or GCash at the counter' : 'Cash at the counter'}</span>
           {stats.usualPostTime && <span className="tag">Posts around {clockOf(stats.usualPostTime)}</span>}
         </div>
-        {place && (
-          <div>
+        <div className="wrap-row" style={{ alignItems: 'center' }}>
+          {(isBuyer || !loggedIn) && (
+            <button type="button" className={`btn${follow?.following ? '' : ' lime'}`} aria-pressed={follow?.following ?? false}
+              disabled={followBusy} onClick={toggleFollow}>
+              {follow?.following ? 'Following' : 'Follow'}
+            </button>
+          )}
+          {place && (
             <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${mapQuery}`} target="_blank" rel="noreferrer">
               Open in Google Maps
             </a>
-          </div>
+          )}
+        </div>
+        {followProblem && <p role="alert" className="err">{followProblem}</p>}
+        {(isBuyer || !loggedIn) && (
+          <p className="small" role="status">
+            {!follow?.following ? `Follow ${store.name} to get an alert when it posts food.`
+              : follow.alertsOn ? `You’ll get an alert when ${store.name} posts food. Tap Following to stop.`
+              : <>You follow {store.name} quietly. Turn its alerts on from <a href={href(paths.following)}>Following</a>.</>}
+          </p>
         )}
       </section>
 
-      {(stats.mealsRescued > 0 || stats.pickupRate != null) && (
-        <section aria-label="Track record" className="two">
-          <div className="card kpi">
-            <strong className="wide value num">{stats.mealsRescued.toLocaleString('en-PH')}</strong>
-            <span>{stats.mealsRescued === 1 ? 'meal' : 'meals'} rescued in the last 30 days</span>
-          </div>
-          {stats.pickupRate != null && (
-            <div className="card kpi">
-              <strong className="wide value num">{percent(stats.pickupRate)}</strong>
-              <span>of reservations were picked up</span>
+      {record.length > 0 && (
+        <section aria-label="Track record" className={record.length === 3 ? 'three' : record.length === 2 ? 'two' : undefined}>
+          {record.map((entry) => (
+            <div key={entry.label} className="card kpi">
+              <strong className="wide value num">{entry.value}</strong>
+              <span>{entry.label}</span>
             </div>
-          )}
+          ))}
         </section>
       )}
 

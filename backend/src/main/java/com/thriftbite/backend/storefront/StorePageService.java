@@ -8,7 +8,9 @@ import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.store.StoreMemberRepository;
 import com.thriftbite.backend.store.StoreRepository;
 import com.thriftbite.backend.store.dto.StoreResponse;
+import com.thriftbite.backend.follow.FollowService;
 import com.thriftbite.backend.storefront.StorePageResponse.Stats;
+import com.thriftbite.backend.storefront.StorePageResponse.Viewer;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,17 +33,20 @@ public class StorePageService {
     private final StoreMemberRepository members;
     private final ItemRepository items;
     private final JdbcTemplate jdbc;
+    private final FollowService follows;
 
     public StorePageService(StoreRepository stores, StoreMemberRepository members, ItemRepository items,
-                            JdbcTemplate jdbc) {
+                            JdbcTemplate jdbc, FollowService follows) {
+        this.follows = follows;
         this.stores = stores;
         this.members = members;
         this.items = items;
         this.jdbc = jdbc;
     }
 
+    /** @param buyerId the buyer looking at the page, or null for anyone else */
     @Transactional(readOnly = true)
-    public StorePageResponse page(String slug) {
+    public StorePageResponse page(String slug, UUID buyerId) {
         // A store that signed up but hasn't been approved has no public page yet.
         Store store = stores.findBySlug(slug.toLowerCase(Locale.ROOT))
                 .filter(found -> members.hasApprovedMember(found.getId()))
@@ -49,7 +54,10 @@ public class StorePageService {
         List<ItemResponse> onSale = items.findByStoreIdAndStatusInAndExpiresAtAfterOrderByStatusAscExpiresAtAsc(
                         store.getId(), List.of(ItemStatus.AVAILABLE, ItemStatus.SOLD_OUT), Instant.now())
                 .stream().map(ItemResponse::from).toList();
-        return new StorePageResponse(StoreResponse.from(store), onSale, stats(store.getId()));
+        FollowService.FollowState state = buyerId == null ? null : follows.state(buyerId, store.getId());
+        Viewer viewer = buyerId == null ? null
+                : new Viewer(state != null, state != null && state.alertsOn());
+        return new StorePageResponse(StoreResponse.from(store), onSale, stats(store.getId()), viewer);
     }
 
     /** One query. These are the same kind of numbers a regular customer could count for themselves. */
@@ -79,7 +87,7 @@ public class StorePageService {
                             ? (double) rs.getInt("picked_up") / closed : null;
                     LocalTime usualPostTime = rs.getInt("posts") >= MIN_POSTS_FOR_USUAL_TIME
                             ? toNearestHalfHour(rs.getDouble("usual_post_seconds")) : null;
-                    return new Stats(rs.getInt("meals"), pickupRate, usualPostTime);
+                    return new Stats(rs.getInt("meals"), pickupRate, usualPostTime, follows.followers(storeId));
                 },
                 storeId, storeId, storeId);
     }

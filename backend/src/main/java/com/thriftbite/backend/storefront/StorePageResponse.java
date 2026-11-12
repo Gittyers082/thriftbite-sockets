@@ -11,7 +11,15 @@ import java.util.List;
  *
  * @param items food on sale or just sold out, not yet expired
  */
-public record StorePageResponse(StoreResponse store, List<ItemResponse> items, Stats stats) {
+public record StorePageResponse(StoreResponse store, List<ItemResponse> items, Stats stats, Viewer viewer) {
+
+    /**
+     * How the buyer looking at the page relates to the store. Null for visitors and for
+     * store and admin accounts.
+     */
+    public record Viewer(boolean following, boolean alertsOn) {
+    }
+
 
     /**
      * All counted over the last 30 days.
@@ -20,7 +28,8 @@ public record StorePageResponse(StoreResponse store, List<ItemResponse> items, S
      * @param pickupRate    share of reservations that were picked up rather than missed (0.98 = 98%);
      *                      null until there are enough to mean something
      * @param usualPostTime the time of day the store usually posts food (Manila); null until it has posted a few times
+     * @param followers     buyers following the store now (not a 30-day number)
      */
-    public record Stats(int mealsRescued, Double pickupRate, LocalTime usualPostTime) {
+    public record Stats(int mealsRescued, Double pickupRate, LocalTime usualPostTime, int followers) {
     }
 }

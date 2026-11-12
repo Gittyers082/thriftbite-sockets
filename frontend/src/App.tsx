@@ -9,6 +9,7 @@ import { Auth } from './pages/Auth'
 import { Browse } from './pages/Browse'
 import { Cart } from './pages/Cart'
 import { Account } from './pages/Account'
+import { Following } from './pages/Following'
 import { NotFound, Pending, Privacy } from './pages/Info'
 import { NewListing } from './pages/NewListing'
 import { OwnerToday } from './pages/OwnerToday'
@@ -46,6 +47,7 @@ function page(path: string): ReactNode {
     case paths.browse: return <Browse />
     case paths.cart: return <Only role="CONSUMER"><Cart /></Only>
     case paths.reservations: return <Only role="CONSUMER"><Reservations /></Only>
+    case paths.following: return <Only role="CONSUMER"><Following /></Only>
     case paths.owner: return <Only role="OWNER"><OwnerToday /></Only>
     case paths.newListing: return <Only role="OWNER"><NewListing /></Only>
     case paths.postAgain: return <Only role="OWNER"><PostAgain /></Only>

@@ -18,6 +18,8 @@ export type LiveMessage =
   | { type: 'store' }
   /** One of this buyer's reservations changed. */
   | { type: 'reservations' }
+  /** This buyer has a new alert, or one was read or removed. */
+  | { type: 'alerts' }
   /** The stores waiting for approval changed. */
   | { type: 'approvals' }
   /** Made here, not sent by the server: the connection was down and is back, so anything may have been missed. */
@@ -69,6 +71,7 @@ function parse(data: unknown): LiveMessage | null {
     case 'deals':
     case 'store':
     case 'reservations':
+    case 'alerts':
     case 'approvals':
       return { type: message.type }
     default:

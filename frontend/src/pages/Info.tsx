@@ -54,7 +54,7 @@ export function NotFound() {
 }
 
 const privacy: [string, string][] = [
-  ['What we collect', 'Your username, your password (stored only as a one-way hash), your recovery codes (also only as hashes), your reservations, and the stores you deal with. For stores, also the store’s name, address, opening hours and listings. We don’t ask for your email, phone number or payment details, and we don’t take payments.'],
+  ['What we collect', 'Your username, your password (stored only as a one-way hash), your recovery codes (also only as hashes), your reservations, the stores you follow, and your alerts (deleted after 30 days). For stores, also the store’s name, address, opening hours and listings. We don’t ask for your email, phone number or payment details, and we don’t take payments.'],
   ['Why we collect it', 'To run reservations and pickups, to show stores the orders they need to hand over, to stop accounts that keep reserving without picking up, and to keep ThriftBite safe from fake stores and abuse.'],
   ['Who can see it', 'A store sees your username and what you reserved, only for reservations with that store. Admins can see accounts and reservations. We don’t sell or share your data with advertisers.'],
   ['How long we keep it', 'Your account and reservations stay until you delete your account. When you do, anything you’re holding goes back on sale, your username and recovery codes are removed, and your past reservations stay in stores’ records without your name. The public demo resets every few hours and deletes everything in it.'],

@@ -1,5 +1,5 @@
 import type {
-  AccountSummary, BatchListingRequest, CartResponse, DemoInfo, DemoRole, ItemRequest, ItemResponse, LoginResponse, PageResponse,
+  AccountSummary, AlertList, BatchListingRequest, CartResponse, DemoInfo, DemoRole, FollowState, FollowedStore, ItemRequest, ItemResponse, LoginResponse, PageResponse,
   ProblemCode, ProblemDetail, RecoverResponse, RegisterRequest, RegisterResponse, ReservationResponse, SalesStats, StorePage, StoreProfile,
   StoreProfileRequest, UserResponse, UsualListing,
 } from './types'
@@ -105,6 +105,16 @@ export const api = {
     request<PageResponse<ItemResponse>>('GET', `/api/items?q=${encodeURIComponent(q)}&page=${page}&size=${size}`),
   item: (id: string) => request<ItemResponse>('GET', `/api/items/${id}`),
   store: (slug: string) => request<StorePage>('GET', `/api/stores/${encodeURIComponent(slug)}`),
+
+  /** Follow a store, or change whether its alerts are on. Safe to repeat. */
+  follow: (slug: string, alertsOn = true) =>
+    request<FollowState>('PUT', `/api/stores/${encodeURIComponent(slug)}/follow`, { alertsOn }),
+  unfollow: (slug: string) => request<void>('DELETE', `/api/stores/${encodeURIComponent(slug)}/follow`),
+  follows: () => request<FollowedStore[]>('GET', '/api/follows'),
+  alerts: () => request<AlertList>('GET', '/api/alerts'),
+  alertCount: () => request<{ unread: number }>('GET', '/api/alerts/count'),
+  readAlert: (id: string) => request<void>('POST', `/api/alerts/${id}/read`),
+  readAllAlerts: () => request<void>('POST', '/api/alerts/read'),
 
   cart: () => request<CartResponse>('GET', '/api/cart'),
   setCartQuantity: (itemId: string, quantity: number) =>

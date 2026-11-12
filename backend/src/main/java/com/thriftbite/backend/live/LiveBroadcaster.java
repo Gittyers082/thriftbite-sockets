@@ -1,5 +1,6 @@
 package com.thriftbite.backend.live;
 
+import com.thriftbite.backend.live.LiveChange.AlertsChanged;
 import com.thriftbite.backend.live.LiveChange.ApprovalsChanged;
 import com.thriftbite.backend.live.LiveChange.DealsChanged;
 import com.thriftbite.backend.live.LiveChange.ItemChanged;
@@ -78,6 +79,7 @@ public class LiveBroadcaster {
             case DealsChanged c -> sessions.sendToAll("{\"type\":\"deals\"}");
             case StoreChanged c -> sessions.sendToStore(c.storeId(), "{\"type\":\"store\"}");
             case ReservationsChanged c -> sessions.sendToUser(c.buyerId(), "{\"type\":\"reservations\"}");
+            case AlertsChanged c -> sessions.sendToUser(c.userId(), "{\"type\":\"alerts\"}");
             case ApprovalsChanged c -> sessions.sendToAdmins("{\"type\":\"approvals\"}");
         }
     }
