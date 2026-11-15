@@ -1,4 +1,6 @@
+import { photoUrl } from '../api/client'
 import type { ItemResponse } from '../api/types'
+import thryxHead from '../assets/thryx-head.png'
 import { peso, pickupLabel, untilLabel } from '../lib/format'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
@@ -29,8 +31,11 @@ export function DealCard({ item, now, inCart, canReserve, loggedIn, adding, onAd
 
   return (
     <article className={`card deal${gone ? ' gone' : ''}`}>
-      <div className="photo">
-        <span>Photo</span>
+      <div className="photo shot">
+        {/* The name is right below, so the picture adds nothing for a screen reader. */}
+        {item.photoId
+          ? <img src={photoUrl(item.photoId, 'thumb')} alt="" loading="lazy" decoding="async" />
+          : <img className="none" src={thryxHead} alt="" />}
         <span className="tag lime tilt">{item.discountPercent}% off</span>
       </div>
       <div className="deal-body">

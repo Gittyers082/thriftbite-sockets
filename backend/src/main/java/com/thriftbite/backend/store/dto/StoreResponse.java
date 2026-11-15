@@ -20,6 +20,7 @@ public record StoreResponse(
         LocalTime defaultPickupStart,
         LocalTime defaultPickupEnd,
         List<StoreHoursEntry> hours,
+        UUID photoId,
         long version
 ) {
 
@@ -31,6 +32,6 @@ public record StoreResponse(
                 .toList();
         return new StoreResponse(store.getId(), store.getSlug(), store.getName(), store.getAddress(),
                 store.getBarangay(), store.getLandmark(), store.isGcashAccepted(),
-                store.getDefaultPickupStart(), store.getDefaultPickupEnd(), hours, store.getVersion());
+                store.getDefaultPickupStart(), store.getDefaultPickupEnd(), hours, store.getPhotoId(), store.getVersion());
     }
 }

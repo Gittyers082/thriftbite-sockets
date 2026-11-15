@@ -13,6 +13,7 @@ import com.thriftbite.backend.item.dto.BatchListingRequest;
 import com.thriftbite.backend.item.dto.ItemRequest;
 import com.thriftbite.backend.item.dto.ItemResponse;
 import com.thriftbite.backend.item.dto.UsualListing;
+import com.thriftbite.backend.photo.Photos;
 import com.thriftbite.backend.store.StoreRepository;
 import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.UserRepository;
@@ -38,12 +39,14 @@ public class ItemService {
     private final StockEvents events;
     private final UsualListings usualListings;
     private final Alerts alerts;
+    private final Photos photos;
     private final ApplicationEventPublisher live;
 
     public ItemService(ItemRepository items, UserRepository users, StoreRepository storeRepository,
                        StoreService stores, StockEvents events, UsualListings usualListings, Alerts alerts,
-                       ApplicationEventPublisher live) {
+                       Photos photos, ApplicationEventPublisher live) {
         this.alerts = alerts;
+        this.photos = photos;
         this.items = items;
         this.users = users;
         this.storeRepository = storeRepository;
@@ -85,12 +88,15 @@ public class ItemService {
         }
         checkBusinessRules(request);
         UUID storeId = stores.storeIdFor(userId);
-        Item item = items.saveAndFlush(new Item(
+        photos.checkBelongsTo(storeId, request.photoId());
+        Item draft = new Item(
                 storeRepository.getReferenceById(storeId), users.getReferenceById(userId),
                 request.name().trim(), request.description(),
                 request.price(), request.originalPrice(), request.quantity(),
                 request.expiresAt(), request.pickupLocation().trim(),
-                request.pickupStart(), request.pickupEnd()));
+                request.pickupStart(), request.pickupEnd());
+        draft.usePhoto(request.photoId());
+        Item item = items.saveAndFlush(draft);
         events.record(item.getId(), StockEventType.LISTED, item.getQuantity(), null, userId);
         alerts.dealsPosted(storeId);   // the store's followers hear about it
         tellOpenScreens(item.getId(), storeId);
@@ -107,7 +113,7 @@ public class ItemService {
                 .map(entry -> create(userId, new ItemRequest(
                         entry.name(), entry.description(), entry.price(), entry.originalPrice(), entry.quantity(),
                         request.pickupEnd(),   // the listing comes off sale when pickup ends
-                        entry.pickupLocation(), request.pickupStart(), request.pickupEnd(), null)))
+                        entry.pickupLocation(), request.pickupStart(), request.pickupEnd(), null, entry.photoId())))
                 .toList();
     }
 
@@ -137,6 +143,8 @@ public class ItemService {
             throw new ConflictException("This item changed since you loaded it. Reload and try again.");
         }
         checkBusinessRules(request);
+        photos.checkBelongsTo(item.getStore().getId(), request.photoId());
+        item.usePhoto(request.photoId());
         int before = item.getQuantity();
         item.update(request.name().trim(), request.description(),
                 request.price(), request.originalPrice(), request.quantity(),

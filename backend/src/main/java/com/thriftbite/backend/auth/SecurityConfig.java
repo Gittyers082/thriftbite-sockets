@@ -32,7 +32,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/recover").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/*", "/api/stores/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/items", "/api/items/*", "/api/stores/*", "/api/photos/*").permitAll()
                         // only exist when app.demo.enabled is true (404 otherwise)
                         .requestMatchers(HttpMethod.GET, "/api/demo").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/demo/login").permitAll()
@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/owner/**").hasRole("OWNER")
                         .requestMatchers("/api/cart/**", "/api/checkout", "/api/reservations/**").hasRole("CONSUMER")
                         .requestMatchers("/api/follows", "/api/stores/*/follow", "/api/alerts/**").hasRole("CONSUMER")
+                        .requestMatchers("/api/reports", "/api/reports/**").hasRole("CONSUMER")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         // The role comes from the database on every request, not from the token.

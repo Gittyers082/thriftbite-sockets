@@ -6,6 +6,7 @@ import { Loading, ProblemPanel } from '../components/States'
 import { useAuth } from '../lib/auth-context'
 import { messageOf } from '../lib/errors'
 import { dateLabel, dayOf, monthAndYear, monthShort, peso, pesoShort, plural } from '../lib/format'
+import { reportKindLabel } from '../lib/reports'
 import { href, navigate, paths } from '../lib/route'
 import { gap } from '../lib/style'
 import { useLoad } from '../lib/useLoad'
@@ -45,6 +46,7 @@ export function Account() {
 
       {account.buyer && <Savings buyer={account.buyer} />}
       {account.buyer && <PickupRecord buyer={account.buyer} />}
+      {account.buyer && <MyReports />}
 
       <section className="card">
         <div className="card-head"><h2>Sign-in and security</h2></div>
@@ -109,6 +111,30 @@ function PickupRecord({ buyer }: { buyer: NonNullable<AccountSummary['buyer']> }
         {buyer.activeReservations === 0 ? 'You have none now.' : `You have ${buyer.activeReservations} now.`}{' '}
         <a href={href(paths.reservations)}>See your reservations</a>
       </p>
+    </section>
+  )
+}
+
+/** Problems the buyer reported, and what came of them. Nothing shows until there's at least one. */
+function MyReports() {
+  const loaded = useLoad(useCallback(() => api.myReports(), []))
+  if (!loaded.data || loaded.data.length === 0) return null
+  return (
+    <section className="card" id="reports">
+      <div className="card-head"><h2>Problems you reported</h2></div>
+      {loaded.data.map((report) => (
+        <div key={report.id} className="report-row stack" style={gap(6)}>
+          <div className="spread" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <strong>{reportKindLabel(report.kind)}</strong>
+            <span className={`tag ${report.status === 'RESOLVED' ? 'teal' : 'cream'}`}>
+              {report.status === 'RESOLVED' ? 'Answered' : 'We’re looking into it'}
+            </span>
+          </div>
+          <span className="muted small">{report.storeName}, {dayOf(report.createdAt)}</span>
+          {report.details && <p>“{report.details}”</p>}
+          {report.reply && <p className="panel cream" style={{ padding: '10px 14px' }}><strong>Our reply:</strong> {report.reply}</p>}
+        </div>
+      ))}
     </section>
   )
 }

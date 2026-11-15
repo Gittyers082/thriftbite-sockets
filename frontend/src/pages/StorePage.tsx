@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ApiError, api } from '../api/client'
+import { ApiError, api, photoUrl } from '../api/client'
 import type { FollowState, StoreProfile } from '../api/types'
 import { DealCard } from '../components/DealCard'
 import { LiveBadge } from '../components/LiveBadge'
@@ -83,7 +83,11 @@ export function StorePage({ slug }: { slug: string }) {
 
   return (
     <div className="stack" style={gap(28)}>
-      <section className="card cream stack" style={gap(16, { padding: 'clamp(20px, 4vw, 40px)' })}>
+      <section className={`card cream store-head${store.photoId ? ' with-photo' : ''}`}>
+        {store.photoId && (
+          <div className="photo shot store-shot"><img src={photoUrl(store.photoId)} alt={`${store.name}, from outside`} /></div>
+        )}
+        <div className="stack" style={gap(16)}>
         <a href={href(paths.browse)} className="muted small" style={{ fontWeight: 600 }}>Back to browse</a>
         <div className="wrap-row" style={gap(14, { alignItems: 'center' })}>
           <h1 className="wide" style={{ fontSize: 'clamp(32px, 5vw, 56px)', lineHeight: 1.04, letterSpacing: -1.5 }}>{store.name}</h1>
@@ -123,6 +127,7 @@ export function StorePage({ slug }: { slug: string }) {
               : <>You follow {store.name} quietly. Turn its alerts on from <a href={href(paths.following)}>Following</a>.</>}
           </p>
         )}
+        </div>
       </section>
 
       {record.length > 0 && (
@@ -190,6 +195,11 @@ export function StorePage({ slug }: { slug: string }) {
       <section className="panel cream stack" style={gap(6, { padding: '18px 20px' })}>
         <strong>About the food</strong>
         <p>{store.name} made this food and is responsible for it. Ask at the counter about allergens before you pay.</p>
+        {isBuyer && (
+          <p className="small">
+            Something wrong with this store? <a href={href(paths.reportStore(store.slug))}>Report a problem</a>
+          </p>
+        )}
       </section>
 
       {mine.length > 0 && (

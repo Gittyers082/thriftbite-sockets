@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /** Body for posting several listings at once, all with the same pickup window. */
 public record BatchListingRequest(
@@ -27,7 +28,8 @@ public record BatchListingRequest(
             @NotNull @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal price,
             @NotNull @DecimalMin("0.01") @Digits(integer = 8, fraction = 2) BigDecimal originalPrice,
             @Min(1) @Max(10_000) int quantity,
-            @NotBlank @Size(max = 200) String pickupLocation
+            @NotBlank @Size(max = 200) String pickupLocation,
+            UUID photoId
     ) {
     }
 }

@@ -53,8 +53,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     RateLimitProperties::claimCodePerWindow),
             // Opening a live connection (each one may also check a login against the database).
             new Rule("live", "GET", Pattern.compile("/ws"), RateLimitProperties::liveConnectsPerWindow),
-            // Every API call counts here too, whatever else it matched.
-            new Rule("general", null, Pattern.compile("/api/.*"), RateLimitProperties::generalPerWindow));
+            // Shrinking a photo is the most work the server does for one request.
+            new Rule("photo-upload", "POST", Pattern.compile("/api/owner/photos"), RateLimitProperties::photoUploadsPerWindow),
+            new Rule("report", "POST", Pattern.compile("/api/reports"), RateLimitProperties::reportsPerWindow),
+            // A page of listings is a page of photos, so viewing them has its own, roomier limit.
+            new Rule("photos", "GET", Pattern.compile("/api/photos/.*"), RateLimitProperties::photosPerWindow),
+            // Every other API call counts here too, whatever else it matched.
+            new Rule("general", null, Pattern.compile("/api/(?!photos/).*"), RateLimitProperties::generalPerWindow));
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 

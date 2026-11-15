@@ -80,6 +80,8 @@ export interface ItemResponse {
   storeId: string
   storeName: string
   storeSlug: string
+  /** Show it with photoUrl(); null if the listing has no photo. */
+  photoId: string | null
   version: number
 }
 
@@ -95,6 +97,15 @@ export interface ItemRequest {
   pickupEnd: string
   /** Required when updating: the version you loaded. */
   version?: number
+  /** A photo from api.uploadPhoto(). Leaving it out means "no photo", also when updating. */
+  photoId?: string | null
+}
+
+/** What uploading a photo gives back. The size is the stored photo's, in pixels. */
+export interface PhotoUpload {
+  id: string
+  width: number
+  height: number
 }
 
 export interface PageResponse<T> {
@@ -169,6 +180,8 @@ export interface StoreProfile {
   defaultPickupEnd: string | null
   /** Open days only, Monday first. A day that's missing is closed. */
   hours: StoreHours[]
+  /** A photo of the storefront, or null. */
+  photoId: string | null
   version: number
 }
 
@@ -182,6 +195,7 @@ export interface StoreProfileRequest {
   defaultPickupEnd: string | null
   hours: StoreHours[]
   version: number
+  photoId: string | null
 }
 
 /** A store's public page. */
@@ -246,13 +260,44 @@ export interface UsualListing {
   lastSoldOutAt: string | null
   /** A different amount worth trying, or null when last time's amount looks right. */
   suggestedQuantity: number | null
+  /** The photo it last had, so posting again keeps it. */
+  photoId: string | null
   alreadyListed: boolean
 }
 
 export interface BatchListingRequest {
   pickupStart: string
   pickupEnd: string
-  items: { name: string; description?: string; price: number; originalPrice: number; quantity: number; pickupLocation: string }[]
+  items: {
+    name: string; description?: string; price: number; originalPrice: number; quantity: number; pickupLocation: string
+    photoId?: string | null
+  }[]
+}
+
+export type ReportKind = 'STORE_CLOSED' | 'NO_FOOD' | 'NOT_AS_LISTED' | 'UNSAFE_FOOD' | 'OVERCHARGED' | 'OTHER'
+
+/** "Report a problem": about one of your pickups, or about a store. Give exactly one of the two. */
+export interface ReportRequest {
+  reservationId?: string
+  storeSlug?: string
+  kind: ReportKind
+  details?: string
+}
+
+/** A report as the buyer who sent it sees it. */
+export interface Report {
+  id: string
+  kind: ReportKind
+  storeName: string
+  storeSlug: string
+  /** Null when the report is about the store in general. */
+  reservationId: string | null
+  details: string | null
+  status: 'OPEN' | 'RESOLVED'
+  /** What the admin said when closing it, if anything. */
+  reply: string | null
+  createdAt: string
+  resolvedAt: string | null
 }
 
 export type DemoRole = 'BUYER' | 'OWNER' | 'ADMIN'
@@ -306,6 +351,7 @@ export interface SalesStats {
 /** Codes the API puts on errors the screens handle differently. */
 export type ProblemCode =
   | 'rate_limited' | 'login_locked' | 'claim_code_locked' | 'account_not_approved' | 'recovery_locked' | 'password_locked'
+  | 'report_limit' | 'photos_busy'
 
 /** RFC 9457 problem details, the shape of every API error. */
 export interface ProblemDetail {

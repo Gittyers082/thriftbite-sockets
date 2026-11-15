@@ -64,6 +64,10 @@ public class Store {
     @Column(name = "default_pickup_end")
     private LocalTime defaultPickupEnd;
 
+    /** A photo of the storefront (see the photo package), or null. */
+    @Column(name = "photo_id")
+    private UUID photoId;
+
     /** Opening hours per day. A day with no entry is closed. */
     @ElementCollection
     @CollectionTable(name = "store_hours", joinColumns = @JoinColumn(name = "store_id"))
@@ -129,7 +133,13 @@ public class Store {
         this.hours.putAll(hours);
     }
 
+    /** @param photoId one of the store's own photos, or null for none */
+    public void usePhoto(UUID photoId) {
+        this.photoId = photoId;
+    }
+
     public UUID getId() { return id; }
+    public UUID getPhotoId() { return photoId; }
     public String getSlug() { return slug; }
     public String getName() { return name; }
     public String getAddress() { return address; }

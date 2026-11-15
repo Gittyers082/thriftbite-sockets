@@ -1,5 +1,6 @@
 import { useCallback, useState, type FormEvent } from 'react'
-import { ApiError, api } from '../api/client'
+import { ApiError, api, photoUrl } from '../api/client'
+import { PhotoPicker } from '../components/PhotoPicker'
 import type { StoreProfile, Weekday } from '../api/types'
 import { Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
@@ -64,6 +65,7 @@ export function StoreProfilePage() {
 function ProfileForm({ store, onReload }: { store: StoreProfile; onReload: () => void }) {
   const [saved, setSaved] = useState(store)
   const [draft, setDraft] = useState(() => draftOf(store))
+  const [photoId, setPhotoId] = useState(store.photoId)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
@@ -98,6 +100,7 @@ function ProfileForm({ store, onReload }: { store: StoreProfile; onReload: () =>
         hours: WEEK.filter((weekday) => draft.hours[weekday].open)
           .map((weekday) => ({ weekday, opens: draft.hours[weekday].opens, closes: draft.hours[weekday].closes })),
         version: saved.version,
+        photoId,
       })
       setSaved(next)
       setDone(true)
@@ -131,6 +134,9 @@ function ProfileForm({ store, onReload }: { store: StoreProfile; onReload: () =>
               <input {...text('name', 80)} aria-invalid={shown.name ? true : undefined} aria-describedby={shown.name ? 'name-err' : undefined} />
               {shown.name && <span id="name-err" className="err">{shown.name}</span>}
             </div>
+            <PhotoPicker id="store-photo" label="Store photo (optional)" photoId={photoId}
+              onChange={(next) => { setPhotoId(next); setDone(false) }}
+              hint="Your storefront or counter, so buyers know what to look for. Shown at the top of your store page." />
             <div className="two" style={{ gap: 14 }}>
               <div className="field">
                 <label htmlFor="address">Street address</label>
@@ -222,6 +228,7 @@ function ProfileForm({ store, onReload }: { store: StoreProfile; onReload: () =>
         <aside className="stack" style={gap(12)} aria-label="Preview">
           <strong>How buyers will see it</strong>
           <div className="card cream stack" style={gap(8, { padding: 20 })}>
+            {photoId && <div className="photo shot store-shot"><img src={photoUrl(photoId, 'thumb')} alt="" /></div>}
             <h3 className="wide" style={{ fontSize: 26, lineHeight: '30px' }}>{draft.name.trim() || 'Your store'}</h3>
             {place ? <strong>{place}</strong> : <span className="muted">Add your address so buyers can find you.</span>}
             {draft.landmark.trim() && <span className="muted">{draft.landmark.trim()}</span>}

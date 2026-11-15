@@ -15,6 +15,7 @@ import { NewListing } from './pages/NewListing'
 import { OwnerToday } from './pages/OwnerToday'
 import { Pickup } from './pages/Pickup'
 import { Recover } from './pages/Recover'
+import { ReportProblem } from './pages/ReportProblem'
 import { PostAgain } from './pages/PostAgain'
 import { Reservations } from './pages/Reservations'
 import { Sales } from './pages/Sales'
@@ -42,6 +43,10 @@ function page(path: string): ReactNode {
   if (pickup) return <Only role="CONSUMER"><Pickup reservationId={pickup.id} /></Only>
   const store = match(path, '/stores/:slug')
   if (store) return <StorePage slug={store.slug} />
+  const reportPickup = match(path, '/report/pickup/:id')
+  if (reportPickup) return <Only role="CONSUMER"><ReportProblem key={path} reservationId={reportPickup.id} /></Only>
+  const reportStore = match(path, '/report/store/:slug')
+  if (reportStore) return <Only role="CONSUMER"><ReportProblem key={path} storeSlug={reportStore.slug} /></Only>
 
   switch (path) {
     case paths.browse: return <Browse />

@@ -10,6 +10,8 @@ export const paths = {
   reservations: '/reservations',
   following: '/following',
   pickup: (reservationId: string) => `/pickup/${reservationId}`,
+  reportPickup: (reservationId: string) => `/report/pickup/${reservationId}`,
+  reportStore: (slug: string) => `/report/store/${slug}`,
   login: '/login',
   signup: '/signup',
   pending: '/pending',

@@ -10,11 +10,13 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Body for creating or updating a listing. Rules that involve two fields
  * (price vs. original price, pickup window vs. expiry) are checked in ItemService.
  *
+ * @param photoId a photo uploaded to /api/owner/photos, or null for none
  * @param version required when updating: the version you last saw, so you can't
  *                overwrite a change you didn't know about (e.g. a sale)
  */
@@ -28,6 +30,7 @@ public record ItemRequest(
         @NotBlank @Size(max = 200) String pickupLocation,
         @NotNull Instant pickupStart,
         @NotNull Instant pickupEnd,
-        Long version
+        Long version,
+        UUID photoId
 ) {
 }

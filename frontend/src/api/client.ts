@@ -1,6 +1,6 @@
 import type {
   AccountSummary, AlertList, BatchListingRequest, CartResponse, DemoInfo, DemoRole, FollowState, FollowedStore, ItemRequest, ItemResponse, LoginResponse, PageResponse,
-  ProblemCode, ProblemDetail, RecoverResponse, RegisterRequest, RegisterResponse, ReservationResponse, SalesStats, StorePage, StoreProfile,
+  PhotoUpload, ProblemCode, ProblemDetail, RecoverResponse, RegisterRequest, RegisterResponse, Report, ReportRequest, ReservationResponse, SalesStats, StorePage, StoreProfile,
   StoreProfileRequest, UserResponse, UsualListing,
 } from './types'
 
@@ -51,11 +51,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  // A form (a file upload) goes as it is: the browser writes its own Content-Type for it.
+  const form = body instanceof FormData
+  if (body !== undefined && !form) headers['Content-Type'] = 'application/json'
 
   let res: Response
   try {
-    res = await fetch(API_BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+    res = await fetch(API_BASE + path, { method, headers, body: body === undefined ? undefined : form ? body : JSON.stringify(body) })
   } catch {
     throw new NetworkError()
   }
@@ -75,9 +77,15 @@ function defaultMessage(status: number): string {
   if (status === 401) return 'Please log in again.'
   if (status === 403) return "This account can't do that."
   if (status === 404) return "That isn't here anymore."
+  if (status === 413) return 'That file is too big.'
   if (status === 429) return 'Too many tries. Wait a few minutes and try again.'
   if (status >= 500) return 'Something went wrong on our side. Try again in a minute.'
   return 'That didn’t work. Try again.'
+}
+
+/** The address of a photo, for an <img>. "thumb" is the small one for lists. */
+export function photoUrl(photoId: string, size: 'full' | 'thumb' = 'full'): string {
+  return `${API_BASE}/api/photos/${photoId}${size === 'thumb' ? '?size=thumb' : ''}`
 }
 
 export const api = {
@@ -122,6 +130,8 @@ export const api = {
   checkout: () => request<ReservationResponse[]>('POST', '/api/checkout'),
   myReservations: () => request<ReservationResponse[]>('GET', '/api/reservations'),
   cancel: (id: string) => request<ReservationResponse>('POST', `/api/reservations/${id}/cancel`),
+  report: (body: ReportRequest) => request<Report>('POST', '/api/reports', body),
+  myReports: () => request<Report[]>('GET', '/api/reports'),
 
   myItems: () => request<ItemResponse[]>('GET', '/api/owner/items'),
   createItem: (body: ItemRequest) => request<ItemResponse>('POST', '/api/owner/items', body),
@@ -131,6 +141,12 @@ export const api = {
   usualListings: (day: string) => request<UsualListing[]>('GET', `/api/owner/items/usual?for=${day}`),
   /** Several listings at once: either all are posted or none. */
   postBatch: (body: BatchListingRequest) => request<ItemResponse[]>('POST', '/api/owner/items/batch', body),
+  /** Adds a photo to the store. Put the id it returns on a listing or on the store profile. */
+  uploadPhoto: (photo: Blob) => {
+    const form = new FormData()
+    form.append('file', photo, 'photo.jpg')
+    return request<PhotoUpload>('POST', '/api/owner/photos', form)
+  },
   myStore: () => request<StoreProfile>('GET', '/api/owner/store'),
   saveStore: (body: StoreProfileRequest) => request<StoreProfile>('PUT', '/api/owner/store', body),
   ownerPickups: () => request<ReservationResponse[]>('GET', '/api/owner/reservations'),

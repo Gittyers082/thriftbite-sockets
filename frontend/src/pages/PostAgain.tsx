@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { api } from '../api/client'
+import { api, photoUrl } from '../api/client'
 import type { StoreProfile, UsualListing } from '../api/types'
 import { Empty, Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
@@ -80,7 +80,7 @@ function Usual({ usual, store, day, dayWord, now }: { usual: UsualListing[]; sto
         pickupEnd: manilaInstant(day, end),
         items: chosen.map((u) => ({
           name: u.name, description: u.description ?? undefined, price: u.price, originalPrice: u.originalPrice,
-          quantity: picks[u.name].quantity, pickupLocation: u.pickupLocation,
+          quantity: picks[u.name].quantity, pickupLocation: u.pickupLocation, photoId: u.photoId,
         })),
       })
       setPosted(made.length)
@@ -114,12 +114,15 @@ function Usual({ usual, store, day, dayWord, now }: { usual: UsualListing[]; sto
             <div key={u.name} className={`usual-row${active ? '' : ' off'}`}>
               <input id={id} type="checkbox" checked={active} disabled={u.alreadyListed}
                 onChange={(e) => set(u.name, { on: e.target.checked })} style={{ width: 20, height: 20, accentColor: 'var(--ink)' }} />
-              <div className="stack" style={gap(2)}>
-                <label htmlFor={id} style={{ fontWeight: 700, cursor: u.alreadyListed ? undefined : 'pointer' }}>{u.name}</label>
-                <span className="small num">{peso(u.price)} <s className="muted">{peso(u.originalPrice)}</s></span>
-                <span className="hint">
-                  {u.sameWeekday ? `Last ${dateLabel(u.lastDay)}` : `Last time, ${dateLabel(u.lastDay)}`}: {lastTime(u)}
-                </span>
+              <div className="row" style={gap(12)}>
+                {u.photoId && <img className="thumb" src={photoUrl(u.photoId, 'thumb')} alt="" loading="lazy" />}
+                <div className="stack grow" style={gap(2)}>
+                  <label htmlFor={id} style={{ fontWeight: 700, cursor: u.alreadyListed ? undefined : 'pointer' }}>{u.name}</label>
+                  <span className="small num">{peso(u.price)} <s className="muted">{peso(u.originalPrice)}</s></span>
+                  <span className="hint">
+                    {u.sameWeekday ? `Last ${dateLabel(u.lastDay)}` : `Last time, ${dateLabel(u.lastDay)}`}: {lastTime(u)}
+                  </span>
+                </div>
               </div>
               {u.alreadyListed ? <span className="tag qty">Already on sale {dayWord}</span> : (
                 <div className="qty">

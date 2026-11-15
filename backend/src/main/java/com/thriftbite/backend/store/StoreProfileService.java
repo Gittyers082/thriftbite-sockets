@@ -4,6 +4,7 @@ import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.live.LiveChange.StoreChanged;
+import com.thriftbite.backend.photo.Photos;
 import com.thriftbite.backend.store.dto.StoreHoursEntry;
 import com.thriftbite.backend.store.dto.StoreProfileRequest;
 import com.thriftbite.backend.store.dto.StoreResponse;
@@ -22,9 +23,12 @@ public class StoreProfileService {
 
     private final StoreRepository stores;
     private final StoreService storeService;
+    private final Photos photos;
     private final ApplicationEventPublisher live;
 
-    public StoreProfileService(StoreRepository stores, StoreService storeService, ApplicationEventPublisher live) {
+    public StoreProfileService(StoreRepository stores, StoreService storeService, Photos photos,
+                               ApplicationEventPublisher live) {
+        this.photos = photos;
         this.stores = stores;
         this.storeService = storeService;
         this.live = live;
@@ -48,6 +52,8 @@ public class StoreProfileService {
         store.updateProfile(request.name().trim(), clean(request.address()), clean(request.barangay()),
                 clean(request.landmark()), request.gcashAccepted(),
                 request.defaultPickupStart(), request.defaultPickupEnd(), hoursOf(request));
+        photos.checkBelongsTo(store.getId(), request.photoId());
+        store.usePhoto(request.photoId());
         stores.saveAndFlush(store);   // write now, so the response carries the new version
         live.publishEvent(new StoreChanged(store.getId()));   // the store's other screens reload
         return StoreResponse.from(store);

@@ -76,6 +76,8 @@ cd backend
 | DELETE | `/api/owner/items/{id}` | owner | Remove a listing |
 | GET | `/api/owner/items/usual?for=` | owner | "Post again": what the store usually lists and how it went last time, for today or tomorrow |
 | POST | `/api/owner/items/batch` | owner | Post several listings with one pickup window, all or nothing |
+| POST | `/api/owner/photos` | owner | Upload a photo (`multipart/form-data`, field `file`, JPG or PNG up to 6 MB); put the `id` it returns on a listing or the store profile as `photoId` |
+| GET | `/api/photos/{id}` | anyone | A photo as a JPEG; add `?size=thumb` for the small one used in lists |
 | GET | `/api/owner/store` | owner | Your store profile |
 | PUT | `/api/owner/store` | owner | Save the profile: address, landmark, opening hours, usual pickup window, GCash (send the `version` you loaded) |
 | GET | `/api/cart` | consumer | Your cart, with a warning on lines that sold out |
@@ -83,6 +85,8 @@ cd backend
 | POST | `/api/checkout` | consumer | Reserve everything in the cart, all or nothing: one reservation and claim code per store |
 | GET | `/api/reservations` | consumer | Your reservations and claim codes |
 | POST | `/api/reservations/{id}/cancel` | consumer | Cancel before pickup (stock goes back on sale) |
+| POST | `/api/reports` | consumer | Report a problem with one of your pickups (`reservationId`) or with a store (`storeSlug`) |
+| GET | `/api/reports` | consumer | The problems you reported, and the admin's reply once there is one |
 | GET | `/api/owner/reservations` | owner | Pickups waiting at your store |
 | POST | `/api/owner/reservations/{id}/complete` | owner | Hand over the food after checking the buyer's claim code |
 | GET | `/api/owner/stats?from=&to=` | owner | Sales for your store: money made, share of listed food sold, leftovers by weekday, pickups by hour, per-item results (Manila days; default the last 7 full days) |
@@ -92,7 +96,7 @@ cd backend
 | GET | `/api/demo` | anyone | Demo accounts and when the demo data next resets (demo deployments only) |
 | POST | `/api/demo/login` | anyone | Log in as the demo `BUYER`, `OWNER` or `ADMIN` (demo deployments only) |
 
-Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`).
+Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`, `report_limit`).
 
 ### Accounts
 
@@ -122,6 +126,27 @@ A buyer can follow a store and gets an alert when it posts food. Buyers also get
 - **Kept for 30 days**, then deleted by the same housekeeping run that expires food.
 - The number on the nav follows the live connection: a new alert, or reading one on another device, updates it.
 
+### Photos
+
+A store can put a photo on a listing and on its own page. Photos are stored in Postgres, next to the listings they belong to: one backup, nothing extra to deploy, and a photo can't go missing from its listing. They're small, and browsers are told to keep them for a year, so each one is fetched once per device.
+
+- **Nothing is stored as it was uploaded.** The server decodes the picture and draws it again as a JPEG in two sizes (960 px for pages, 480 px for lists). A file that isn't really a picture fails to decode, and everything else a photo file carries (where it was taken, the phone model) is left behind.
+- **Checked from the bytes, not the name.** Only real JPEGs and PNGs get in: no SVG (it can carry scripts), no GIF, no half-uploaded files.
+- **Built for a 512 MB server.** The size is read from the file's header before any pixels are, so a tiny file claiming to be 60,000 pixels wide is refused at once. Big photos are decoded at a fraction of their size, and two are processed at a time.
+- **Shrunk in the browser first.** The page resizes a phone photo to a few hundred KB before sending it, which matters on mobile data. The server doesn't rely on that.
+- **Lists use the small one**, loaded only when scrolled to.
+- The same file uploaded twice is stored once. A store keeps up to 200 photos, and ones nothing shows anymore are deleted (unused after a day, or only on listings that ended two months ago).
+- "Post again" brings a food's last photo with it.
+- **Uploads are off for the shared demo accounts**, so nobody can put a picture on the public demo. To give the demo's sample listings photos, add files to [`backend/src/main/resources/demo/photos`](backend/src/main/resources/demo/photos/README.md).
+
+### Report a problem
+
+A buyer can tell the admins that something went wrong: with one of their pickups (the store was closed, the food wasn't what the listing said, it looked unsafe) or with a store in general. The store isn't told who reported it, and the buyer sees the status and the admin's reply on their account page.
+
+A report is an accusation, so the API keeps it honest: a pickup report must be about the buyer's own reservation from the last 30 days, there's one per pickup and one open report per store, and a buyer can send 5 a day. Deleting an account keeps its reports (the store may still need looking into) but erases what the buyer wrote.
+
+Reports are stored and shown to the buyer now; the admin screen for answering them is the next step.
+
 ### Live updates
 
 Open screens update on their own over a WebSocket at `/ws`: a stock count drops on every browse page when someone reserves, a new reservation appears on the store's counter screen, and a buyer's ticket flips to "picked up" when the store hands the food over.
@@ -141,6 +166,8 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 - **5 wrong passwords** from one address pause that username for that address for 15 minutes; 20 from anywhere pause it for everyone. Counting per address means a stranger who knows a username can't lock its owner out. The same limit applies to recovery codes and to the "current password" box.
 - Per-address limits on log in, sign-up, checkout and claim-code entry return `429` with `Retry-After`. Every other API call shares a generous per-address limit (1,200 per 10 minutes), so a script can't flood the API.
 - Live connections: 500 at once in total, 60 from one address, and 300 opened per address per 10 minutes.
+- Photo uploads: 30 per address per 10 minutes. Viewing photos has its own limit (6,000 per 10 minutes), so a page full of pictures doesn't use up the limit for everything else.
+- Problem reports: 5 per buyer per day.
 
 ### Security notes
 
@@ -150,7 +177,7 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 - **Every lookup is scoped to the caller.** The user id comes from the verified token, never from the request, and a store can only reach its own listings and pickups.
 - **Rate limits use the visitor's own address.** Behind Render that is the `CF-Connecting-IP` header (set in `render.yaml`); `X-Forwarded-For` can be faked there.
 - **The demo admin is boxed in.** Anyone can log in as it, so it only sees and approves the demo's sample stores.
-- **The frontend sends a Content Security Policy** (`frontend/vercel.json`): scripts only from the site itself, API calls and the live connection only to the site and `*.onrender.com`, and no framing by other sites. If the API moves to another domain, update `connect-src` there.
+- **The frontend sends a Content Security Policy** (`frontend/vercel.json`): scripts only from the site itself, API calls and the live connection only to the site and `*.onrender.com`, and no framing by other sites. If the API moves to another domain, update `connect-src` and `img-src` there (photos load from the API).
 - **The live connection** only accepts pages from the frontend's own address (the CORS list), takes one small login message and closes on anything else, and drops browsers that stop reading.
 
 ## Deploy

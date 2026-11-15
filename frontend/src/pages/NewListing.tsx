@@ -1,5 +1,6 @@
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
-import { api } from '../api/client'
+import { api, photoUrl } from '../api/client'
+import { PhotoPicker } from '../components/PhotoPicker'
 import { Loading } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { clockOf, manilaDate, manilaInstant, peso } from '../lib/format'
@@ -60,6 +61,7 @@ function ListingForm({ start }: { start: Draft }) {
   const now = useNow()
   const today = manilaDate(now)
   const [draft, setDraft] = useState<Draft>(start)
+  const [photoId, setPhotoId] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +92,7 @@ function ListingForm({ start }: { start: Draft }) {
         pickupEnd,
         // The listing comes off the app when pickup ends.
         expiresAt: pickupEnd,
+        photoId,
       })
       navigate(paths.owner)
     } catch (err) {
@@ -130,6 +133,8 @@ function ListingForm({ start }: { start: Draft }) {
           {field('name', 'Food', <input {...attrs('name')} maxLength={120} placeholder="Ensaymada, box of 6" />)}
           {field('description', 'Details (optional)', <textarea {...attrs('description')} maxLength={500} rows={3}
             placeholder="Baked this morning. Ube and cheese." style={{ resize: 'vertical', padding: '10px 14px', height: 'auto' }} />)}
+          <PhotoPicker id="listing-photo" label="Photo (optional)" photoId={photoId} onChange={setPhotoId}
+            hint="Listings with a photo of the actual food get reserved faster. Any phone photo works." />
           <div className="three" style={{ gap: 14 }}>
             {field('originalPrice', 'Usual price (₱)', <input {...attrs('originalPrice')} type="number" inputMode="decimal" min={0.01} step={0.01} />)}
             {field('price', 'Tonight’s price (₱)', <input {...attrs('price')} type="number" inputMode="decimal" min={0} step={0.01} />)}
@@ -150,8 +155,8 @@ function ListingForm({ start }: { start: Draft }) {
         <aside className="stack" style={gap(12)} aria-label="Preview">
           <strong>How buyers will see it</strong>
           <article className="card deal">
-            <div className="photo">
-              <span>Photo</span>
+            <div className="photo shot">
+              {photoId ? <img src={photoUrl(photoId, 'thumb')} alt="" /> : <span>No photo</span>}
               {off != null && off > 0 && <span className="tag lime tilt">{off}% off</span>}
             </div>
             <div className="deal-body">

@@ -5,6 +5,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.alert.Alerts;
 import com.thriftbite.backend.item.Item;
 import com.thriftbite.backend.item.ItemRepository;
+import com.thriftbite.backend.photo.PhotoProcessor;
+import com.thriftbite.backend.photo.PhotoProcessor.Processed;
+import com.thriftbite.backend.photo.Photos;
 import com.thriftbite.backend.reservation.Reservation;
 import com.thriftbite.backend.reservation.ReservationItem;
 import com.thriftbite.backend.reservation.ReservationRepository;
@@ -20,12 +23,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -38,7 +44,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Sample Baguio stores, food and reservations for the public demo.
@@ -73,6 +81,10 @@ public class DemoData implements ApplicationRunner {
     private final TransactionTemplate tx;
     private final ApplicationEventPublisher live;
     private final Alerts alerts;
+    private final Photos photos;
+    private final PhotoProcessor photoProcessor;
+    /** Demo photos, shrunk once and reused by every reset. Empty means "no such file". */
+    private final Map<String, Optional<DemoPhoto>> demoPhotos = new ConcurrentHashMap<>();
     private final String keepAdmin;
     private final Duration maxAge;
 
@@ -81,6 +93,7 @@ public class DemoData implements ApplicationRunner {
     public DemoData(UserRepository users, ItemRepository items, ReservationRepository reservations,
                     PasswordEncoder passwordEncoder, StoreService stores, JdbcTemplate jdbc,
                     PlatformTransactionManager transactions, ApplicationEventPublisher live, Alerts alerts,
+                    Photos photos, PhotoProcessor photoProcessor,
                     @Value("${app.admin.username:}") String bootstrapAdmin,
                     @Value("${app.demo.max-age:PT6H}") Duration maxAge) {
         this.users = users;
@@ -92,6 +105,8 @@ public class DemoData implements ApplicationRunner {
         this.tx = new TransactionTemplate(transactions);
         this.live = live;
         this.alerts = alerts;
+        this.photos = photos;
+        this.photoProcessor = photoProcessor;
         this.keepAdmin = bootstrapAdmin == null ? "" : bootstrapAdmin.trim().toLowerCase(Locale.ROOT);
         this.maxAge = maxAge;
     }
@@ -247,7 +262,7 @@ public class DemoData implements ApplicationRunner {
         // ...and a couple of months of pickups, so the account page has savings to show.
         pickedUp(buyer, lola.store(), "118452", adobo, 2, now.minus(Duration.ofDays(12)));
         pickedUp(buyer, pinegrove.store(), "902317", croissants, 1, now.minus(Duration.ofDays(19)));
-        pickedUp(buyer, kusina.store(), "475560", lumpia, 1, now.minus(Duration.ofDays(33)));
+        Reservation lumpiaPickup = pickedUp(buyer, kusina.store(), "475560", lumpia, 1, now.minus(Duration.ofDays(33)));
         pickedUp(buyer, lola.store(), "660913", pinakbet, 1, now.minus(Duration.ofDays(40)));
         pickedUp(buyer, burnham.store(), "239874", taho, 2, now.minus(Duration.ofDays(55)));
         pickedUp(buyer, pinegrove.store(), "781245", bananaBread, 1, now.minus(Duration.ofDays(61)));
@@ -275,6 +290,22 @@ public class DemoData implements ApplicationRunner {
         jdbc.update(posted, "40 minutes", buyer.getId(), sunrise.getId());
         jdbc.update(posted, "85 minutes", buyer.getId(), lola.store().getId());
         jdbc.update(posted, "2 hours", buyer.getId(), pinegrove.store().getId());
+
+        // Problem reports: one of the buyer's that an admin has answered, and one still waiting.
+        jdbc.update("""
+                INSERT INTO reports (reporter_id, store_id, reservation_id, kind, details, status, reply, created_at, resolved_at)
+                VALUES (?, ?, ?, 'NOT_AS_LISTED', ?, 'RESOLVED', ?, ?, ?)
+                """, buyer.getId(), kusina.store().getId(), lumpiaPickup.getId(),
+                "The pack had 8 pieces, not the 10 in the listing.",
+                "Thanks for telling us. We spoke with the store, and the listing now says what's in the pack.",
+                Timestamp.from(now.minus(Duration.ofDays(33))), Timestamp.from(now.minus(Duration.ofDays(31))));
+        jdbc.update("""
+                INSERT INTO reports (reporter_id, store_id, kind, details, created_at)
+                VALUES (?, ?, 'OVERCHARGED', ?, ?)
+                """, mara.getId(), kusina.store().getId(),
+                "I was asked for ₱65 at the counter. The app said ₱55.", Timestamp.from(now.minus(Duration.ofDays(2))));
+
+        addPhotos();
 
         // The buyer has been around as long as their history.
         jdbc.update("UPDATE users SET created_at = ? WHERE id = ?",
@@ -321,13 +352,65 @@ public class DemoData implements ApplicationRunner {
         return reservations.save(reservation);
     }
 
-    /** created_at is set on insert, so past reservations get their real times afterwards. */
     /** A reservation the buyer picked up at {@code when}, three hours after making it. */
-    private void pickedUp(User buyer, Store store, String code, Item item, int quantity, Instant when) {
+    private Reservation pickedUp(User buyer, Store store, String code, Item item, int quantity, Instant when) {
         Reservation reservation = reservation(buyer, store, code, when, item, quantity, null, 0);
         reservation.complete(when);
         reservations.save(reservation);
         backdate(reservation, when.minus(Duration.ofHours(3)), when);
+        return reservation;
+    }
+
+    private record DemoPhoto(String sha256, Processed photo) {
+    }
+
+    /**
+     * Gives demo listings and stores their photos, from files in src/main/resources/demo/photos.
+     * A listing called "Pandesal, bag of 10" uses pandesal.jpg (the name up to the first comma);
+     * a store uses store-&lt;its link name&gt;.jpg, e.g. store-sunrise-bakery.jpg. Anything without
+     * a file simply has no photo, so the demo works with none, some or all of them.
+     */
+    private void addPhotos() {
+        reservations.flush();   // the plain SQL below needs the stores and listings in the database
+        int[] used = {0};
+        jdbc.query("SELECT id, slug FROM stores", (rs, row) -> Map.entry(rs.getObject("id", UUID.class), rs.getString("slug")))
+                .forEach(store -> {
+                    demoPhoto("store-" + store.getValue()).ifPresent(photo -> {
+                        UUID photoId = photos.insert(store.getKey(), null, photo.sha256(), photo.photo()).id();
+                        jdbc.update("UPDATE stores SET photo_id = ? WHERE id = ?", photoId, store.getKey());
+                        used[0]++;
+                    });
+                    for (String name : jdbc.queryForList("SELECT DISTINCT name FROM items WHERE store_id = ?", String.class, store.getKey())) {
+                        demoPhoto(fileNameFor(name)).ifPresent(photo -> {
+                            UUID photoId = photos.insert(store.getKey(), null, photo.sha256(), photo.photo()).id();
+                            jdbc.update("UPDATE items SET photo_id = ? WHERE store_id = ? AND name = ?", photoId, store.getKey(), name);
+                            used[0]++;
+                        });
+                    }
+                });
+        log.info("Demo photos: {} found in demo/photos", used[0]);
+    }
+
+    /** "Ube cheese ensaymada, box of 4" becomes "ube-cheese-ensaymada". */
+    static String fileNameFor(String listingName) {
+        String food = listingName.contains(",") ? listingName.substring(0, listingName.indexOf(',')) : listingName;
+        return food.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+    }
+
+    private Optional<DemoPhoto> demoPhoto(String fileName) {
+        return demoPhotos.computeIfAbsent(fileName, name -> {
+            ClassPathResource file = new ClassPathResource("demo/photos/" + name + ".jpg");
+            if (!file.exists()) {
+                return Optional.empty();
+            }
+            try (InputStream in = file.getInputStream()) {
+                byte[] bytes = in.readAllBytes();
+                return Optional.of(new DemoPhoto(Photos.sha256(bytes), photoProcessor.process(bytes)));
+            } catch (IOException | RuntimeException e) {
+                log.warn("Demo photo {}.jpg can't be used: {}", name, e.getMessage());
+                return Optional.empty();
+            }
+        });
     }
 
     /** Moves a finished reservation into the past: made at {@code createdAt}, ended three hours later. */

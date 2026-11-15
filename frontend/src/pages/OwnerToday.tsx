@@ -36,6 +36,7 @@ function requestFrom(item: ItemResponse, changes: Partial<ItemRequest> = {}): It
     pickupStart: item.pickupStart,
     pickupEnd: item.pickupEnd,
     version: item.version,
+    photoId: item.photoId,   // an update without it would take the photo off
     ...changes,
   }
 }

@@ -72,7 +72,11 @@ public class UsualListings {
                       FROM past
                      ORDER BY lower(name), (EXTRACT(ISODOW FROM day) = :weekday) DESC, day DESC, pickup_start DESC
                 )
-                SELECT * FROM chosen ORDER BY lower(name)
+                SELECT chosen.*,
+                       (SELECT x.photo_id FROM items x          -- the newest photo this food has had
+                         WHERE x.store_id = :store AND lower(x.name) = lower(chosen.name) AND x.photo_id IS NOT NULL
+                         ORDER BY x.created_at DESC LIMIT 1) AS photo_id
+                  FROM chosen ORDER BY lower(name)
                 """, params, (rs, row) -> {
                     int listed = rs.getInt("listed");
                     int sold = rs.getInt("sold");
@@ -87,6 +91,7 @@ public class UsualListings {
                             listed, sold,
                             soldOutAt == null ? null : LocalTime.ofInstant(soldOutAt, ZONE).withNano(0),
                             suggest(listed, sold, soldOutAt, pickupStart),
+                            rs.getObject("photo_id", UUID.class),
                             alreadyListed.contains(rs.getString("name").toLowerCase()));
                 });
     }

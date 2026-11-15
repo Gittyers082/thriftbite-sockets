@@ -32,6 +32,9 @@ public record RateLimitProperties(
         @DefaultValue("60") int claimCodePerWindow,
         @DefaultValue("300") int liveConnectsPerWindow,
         @DefaultValue("1200") int generalPerWindow,
+        @DefaultValue("30") int photoUploadsPerWindow,
+        @DefaultValue("6000") int photosPerWindow,
+        @DefaultValue("10") int reportsPerWindow,
         @DefaultValue("PT10M") Duration window,
         @DefaultValue("5") int loginFailuresBeforeLock,
         @DefaultValue("PT15M") Duration loginLock) {
