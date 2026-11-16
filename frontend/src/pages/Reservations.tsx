@@ -9,7 +9,7 @@ import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
 import type { LiveMessage } from '../lib/live'
 import { useLiveReload } from '../lib/useLive'
-import { useLoad } from '../lib/useLoad'
+import { useLoad, useNow } from '../lib/useLoad'
 
 /** The store handed the food over, or the pickup time passed. */
 const reservationsChanged = (message: LiveMessage) => message.type === 'reservations'
@@ -29,6 +29,7 @@ export function Reservations() {
   const [tab, setTab] = useState<'active' | 'past'>('active')
   const [confirming, setConfirming] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  const now = useNow(60_000)   // for "too long ago to report"; a render must not read the clock itself
 
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading label="Loading your reservations…" />
@@ -37,7 +38,7 @@ export function Reservations() {
   const active = reservations.filter((r) => r.status === 'RESERVED')
   const past = reservations.filter((r) => r.status !== 'RESERVED')
   const reported = new Set(reports.map((report) => report.reservationId))
-  const tooOld = Date.now() - REPORT_WITHIN_DAYS * 86_400_000
+  const tooOld = now - REPORT_WITHIN_DAYS * 86_400_000
   /** "Report a problem", "Reported", or nothing once it's too long ago to look into. */
   const reportLink = (r: ReservationResponse) =>
     reported.has(r.id) ? <a className="small" href={href(paths.reportPickup(r.id))}>Problem reported</a>

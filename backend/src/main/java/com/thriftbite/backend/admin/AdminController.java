@@ -50,7 +50,7 @@ public class AdminController {
     @PostMapping("/reports/{reportId}/resolve")
     public AdminReport resolve(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID reportId,
                                @Valid @RequestBody ResolveReportRequest request) {
-        return admin.resolveReport(TokenService.userId(jwt), reportId, request.reply());
+        return admin.resolveReport(TokenService.userId(jwt), reportId, request.reply(), Boolean.TRUE.equals(request.excuseMiss()));
     }
 
     @GetMapping("/activity")

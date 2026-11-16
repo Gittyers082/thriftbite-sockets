@@ -78,6 +78,10 @@ app:
     # Wrong claim codes before code entry for that reservation pauses, and for how long.
     max-code-attempts: 5
     code-lock: PT15M
+    # Missing this many pickups within the window pauses reserving for the block length.
+    missed-pickups-before-block: 2
+    missed-pickup-window: P30D
+    missed-pickup-block: P7D
   demo:
     # One-tap Buyer / Store owner / Admin accounts with sample Baguio data, for the
     # public demo. WARNING: a reset deletes every account except the bootstrap admin.

@@ -2,6 +2,7 @@ package com.thriftbite.backend.admin;
 
 import com.thriftbite.backend.admin.dto.AdminReport;
 import com.thriftbite.backend.alert.Alerts;
+import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.live.LiveChange.ReportsChanged;
@@ -49,6 +50,8 @@ public class AdminReports {
                       FROM reservations res JOIN reservation_items ri ON ri.reservation_id = res.id
                      WHERE res.id = r.reservation_id
                      GROUP BY res.id) AS pickup,
+                   COALESCE((SELECT res.status = 'EXPIRED' AND NOT res.miss_excused
+                               FROM reservations res WHERE res.id = r.reservation_id), false) AS pickup_missed,
                    (SELECT COUNT(*) FROM reports x
                      WHERE x.store_id = r.store_id AND x.created_at > now() - interval '90 days') AS store_reports,
                    (SELECT COUNT(*) FROM reports x
@@ -65,7 +68,8 @@ public class AdminReports {
                 rs.getString("details"), rs.getString("status"), rs.getString("reply"),
                 rs.getTimestamp("created_at").toInstant(), resolved == null ? null : resolved.toInstant(),
                 rs.getString("resolved_by"), rs.getString("reporter"), rs.getString("store_name"),
-                rs.getString("store_slug"), rs.getString("pickup"), rs.getInt("store_reports"), rs.getInt("reporter_reports"));
+                rs.getString("store_slug"), rs.getString("pickup"), rs.getBoolean("pickup_missed"),
+                rs.getInt("store_reports"), rs.getInt("reporter_reports"));
     };
 
     private final JdbcTemplate jdbc;
@@ -102,7 +106,7 @@ public class AdminReports {
      * page and they get an alert; the store is told nothing by this.
      */
     @Transactional
-    public AdminReport resolve(User admin, UUID reportId, String reply) {
+    public AdminReport resolve(User admin, UUID reportId, String reply, boolean excuseMiss) {
         List<AdminReport> found = jdbc.query(SELECT + " WHERE r.id = ? AND " + VISIBLE, ROW, reportId, admin.isDemo());
         if (found.isEmpty()) {
             throw new NotFoundException("Report not found");
@@ -117,8 +121,18 @@ public class AdminReports {
             throw new ConflictException("Another admin has already answered this report");
         }
         AdminReport before = found.get(0);
+        if (excuseMiss) {
+            if (!before.pickupMissed()) {
+                throw new BadRequestException("This report isn't about a missed pickup, so there's nothing to excuse");
+            }
+            jdbc.update("""
+                    UPDATE reservations SET miss_excused = true
+                     WHERE id = (SELECT reservation_id FROM reports WHERE id = ?) AND status = 'EXPIRED'
+                    """, reportId);
+        }
         alerts.reportAnswered(reportId);
-        log.record(admin, "ANSWER_REPORT", "Report about " + before.storeName() + " from " + before.reporter(), text);
+        log.record(admin, "ANSWER_REPORT", "Report about " + before.storeName() + " from " + before.reporter(),
+                excuseMiss ? text + " (missed pickup excused)" : text);
         live.publishEvent(new ReportsChanged());
         return jdbc.queryForObject(SELECT + " WHERE r.id = ? AND " + VISIBLE, ROW, reportId, admin.isDemo());
     }

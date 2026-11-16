@@ -29,7 +29,9 @@ public record AccountResponse(
      * @param saved          usual price minus price paid, over everything picked up
      * @param mealsSaved     units picked up
      * @param months         the last three calendar months (Manila), oldest first
-     * @param missedPickups  reservations not picked up in the last 30 days, newest first
+     * @param missedPickups  reservations not picked up in the last 30 days, newest first (excused ones left out)
+     * @param reserveBlockedUntil  when reserving is allowed again after too many missed pickups; null if it is now
+     * @param missesBeforeBlock    the rule: this many misses within {@code missWindowDays} pauses reserving for {@code blockDays}
      */
     public record BuyerSummary(
             BigDecimal saved,
@@ -37,7 +39,11 @@ public record AccountResponse(
             List<Month> months,
             List<Missed> missedPickups,
             long activeReservations,
-            int maxActiveReservations
+            int maxActiveReservations,
+            Instant reserveBlockedUntil,
+            int missesBeforeBlock,
+            int missWindowDays,
+            int blockDays
     ) {
     }
 

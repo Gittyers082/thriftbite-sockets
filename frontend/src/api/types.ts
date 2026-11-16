@@ -61,6 +61,12 @@ export interface AccountSummary {
     missedPickups: { storeName: string; day: string }[]
     activeReservations: number
     maxActiveReservations: number
+    /** When reserving is allowed again after too many missed pickups; null if it is now. */
+    reserveBlockedUntil: string | null
+    /** The rule: this many misses within missWindowDays pauses reserving for blockDays. */
+    missesBeforeBlock: number
+    missWindowDays: number
+    blockDays: number
   } | null
 }
 
@@ -351,7 +357,7 @@ export interface SalesStats {
 /** Codes the API puts on errors the screens handle differently. */
 export type ProblemCode =
   | 'rate_limited' | 'login_locked' | 'claim_code_locked' | 'account_not_approved' | 'recovery_locked' | 'password_locked'
-  | 'report_limit' | 'photos_busy' | 'account_suspended'
+  | 'report_limit' | 'photos_busy' | 'account_suspended' | 'pickup_block'
 
 /** RFC 9457 problem details, the shape of every API error. */
 export interface ProblemDetail {
@@ -378,6 +384,8 @@ export interface AdminReport {
   storeSlug: string
   /** e.g. "2 × Pandesal, reserved 12 Nov, picked up"; null when it's about the store in general. */
   pickup: string | null
+  /** The pickup ended as "not picked up" and still counts against the buyer. */
+  pickupMissed: boolean
   /** Reports about this store, and sent by this buyer, in the last 90 days (this one included). */
   storeReports: number
   reporterReports: number

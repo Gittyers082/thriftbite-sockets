@@ -83,8 +83,8 @@ public class AdminService {
     }
 
     @Transactional
-    public AdminReport resolveReport(UUID adminId, UUID reportId, String reply) {
-        return reports.resolve(actor(adminId), reportId, reply);
+    public AdminReport resolveReport(UUID adminId, UUID reportId, String reply, boolean excuseMiss) {
+        return reports.resolve(actor(adminId), reportId, reply, excuseMiss);
     }
 
     @Transactional(readOnly = true)

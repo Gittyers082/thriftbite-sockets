@@ -10,6 +10,7 @@ import com.thriftbite.backend.cart.CartItemRepository;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
+import com.thriftbite.backend.common.ApiExceptions.PickupBlockException;
 import com.thriftbite.backend.common.ApiExceptions.TooManyRequestsException;
 import com.thriftbite.backend.common.ApiExceptions.WrongClaimCodeException;
 import com.thriftbite.backend.item.Item;
@@ -44,6 +45,9 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    /** For telling a buyer when they can reserve again, e.g. "Nov 23, 6:15 PM". */
+    private static final java.time.format.DateTimeFormatter WHEN = java.time.format.DateTimeFormatter
+            .ofPattern("MMM d, h:mm a", java.util.Locale.ENGLISH).withZone(java.time.ZoneId.of("Asia/Manila"));
 
     private final CartItemRepository cart;
     private final ItemRepository items;
@@ -53,6 +57,7 @@ public class ReservationService {
     private final StoreService stores;
     private final StockEvents events;
     private final Alerts alerts;
+    private final PickupStrikes strikes;
     private final ApplicationEventPublisher live;
     private final int maxActivePerBuyer;
     private final int maxCodeAttempts;
@@ -61,7 +66,7 @@ public class ReservationService {
     public ReservationService(CartItemRepository cart, ItemRepository items,
                               ReservationRepository reservations, UserRepository users,
                               StoreRepository storeRepository, StoreService stores, StockEvents events,
-                              Alerts alerts, ApplicationEventPublisher live,
+                              Alerts alerts, PickupStrikes strikes, ApplicationEventPublisher live,
                               @Value("${app.reservations.max-active-per-buyer:2}") int maxActivePerBuyer,
                               @Value("${app.reservations.max-code-attempts:5}") int maxCodeAttempts,
                               @Value("${app.reservations.code-lock:PT15M}") Duration codeLock) {
@@ -73,6 +78,7 @@ public class ReservationService {
         this.stores = stores;
         this.events = events;
         this.alerts = alerts;
+        this.strikes = strikes;
         this.live = live;
         this.maxActivePerBuyer = maxActivePerBuyer;
         this.maxCodeAttempts = maxCodeAttempts;
@@ -104,6 +110,14 @@ public class ReservationService {
         // Lock the buyer's row first, so two checkouts by the same buyer (two tabs,
         // a double tap) run one after the other and both see the real count.
         users.lockById(buyerId).orElseThrow(() -> new NotFoundException("User no longer exists"));
+
+        PickupStrikes.Standing standing = strikes.of(buyerId);
+        if (standing.blocked()) {
+            throw new PickupBlockException("You missed " + strikes.limit() + " pickups within "
+                    + strikes.window().toDays() + " days, so you can't reserve until "
+                    + WHEN.format(standing.blockedUntil()) + ". You can still browse, and follow stores for later.",
+                    standing.blockedUntil());
+        }
 
         List<CartItem> lines = cart.findByIdUserId(buyerId);
         if (lines.isEmpty()) {
@@ -246,7 +260,8 @@ public class ReservationService {
         List<Reservation> missed = reservations.findByStatusAndPickupDeadlineBefore(ReservationStatus.RESERVED, now);
         missed.forEach(reservation -> {
             reservation.expire(now);
-            alerts.missed(reservation.getId());
+            reservations.flush();   // the strike count below reads the database
+            alerts.missed(reservation.getId(), strikes.of(reservation.getBuyer().getId()).blockedUntil());
             live.publishEvent(new StoreChanged(reservation.getStore().getId()));
             live.publishEvent(new ReservationsChanged(reservation.getBuyer().getId()));
         });

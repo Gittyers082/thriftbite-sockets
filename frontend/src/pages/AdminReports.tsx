@@ -64,6 +64,7 @@ export function AdminReports() {
 
 function ReportCard({ report, onAnswered }: { report: AdminReport; onAnswered: () => void }) {
   const [reply, setReply] = useState('')
+  const [excuse, setExcuse] = useState(false)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +79,7 @@ function ReportCard({ report, onAnswered }: { report: AdminReport; onAnswered: (
     if (tooShort) return
     setBusy(true)
     try {
-      await api.resolveReport(report.id, reply.trim())
+      await api.resolveReport(report.id, reply.trim(), excuse)
       onAnswered()
     } catch (err) {
       setError(messageOf(err))
@@ -119,6 +120,13 @@ function ReportCard({ report, onAnswered }: { report: AdminReport; onAnswered: (
               ? <span id={`${id}-hint`} role="alert" className="err">Write a sentence saying what you found or did.</span>
               : <span id={`${id}-hint`} className="hint">Say what you found and what you did about it. They’ll see it on their account page.</span>}
           </div>
+          {report.pickupMissed && (
+            <label className="row" style={gap(10, { cursor: 'pointer' })}>
+              <input type="checkbox" checked={excuse} onChange={(e) => setExcuse(e.target.checked)}
+                style={{ width: 20, height: 20, flex: 'none', accentColor: 'var(--ink)' }} />
+              <span>Don’t count this missed pickup against the buyer <span className="hint">(for when it wasn’t their fault)</span></span>
+            </label>
+          )}
           {error && <p role="alert" className="err">{error}</p>}
           <div><button type="submit" className="btn teal" disabled={busy}>{busy ? 'Sending…' : 'Send reply and close'}</button></div>
         </form>

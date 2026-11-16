@@ -5,7 +5,7 @@ import { RecoveryCodeList } from '../components/RecoveryCodeList'
 import { Loading, ProblemPanel } from '../components/States'
 import { useAuth } from '../lib/auth-context'
 import { messageOf } from '../lib/errors'
-import { dateLabel, dayOf, monthAndYear, monthShort, peso, pesoShort, plural } from '../lib/format'
+import { dateLabel, dayOf, monthAndYear, monthShort, peso, pesoShort, plural, timeOf } from '../lib/format'
 import { reportKindLabel } from '../lib/reports'
 import { href, navigate, paths } from '../lib/route'
 import { gap } from '../lib/style'
@@ -104,7 +104,19 @@ function PickupRecord({ buyer }: { buyer: NonNullable<AccountSummary['buyer']> }
       <div className="card-row stack" style={gap(6)}>
         <strong>{missed.length === 0 ? 'No missed pickups in the last 30 days' : `${plural(missed.length, 'missed pickup')} in the last 30 days`}</strong>
         {missed.length > 0 && <p className="muted">{missed.map((m) => `${m.storeName}, ${dateLabel(m.day).split(', ')[1]}`).join('; ')}.</p>}
-        <p className="small">A store set that food aside for you. Cancelling before the pickup window starts never counts as missed.</p>
+        {buyer.reserveBlockedUntil && (
+          <p role="status" className="panel notice bad" style={{ padding: '12px 14px' }}>
+            <span>
+              <strong>You can’t reserve until {dayOf(buyer.reserveBlockedUntil)}, {timeOf(buyer.reserveBlockedUntil)}.</strong>{' '}
+              That’s {buyer.missesBeforeBlock} missed pickups within {buyer.missWindowDays} days. You can still browse and follow stores.
+            </span>
+          </p>
+        )}
+        <p className="small">
+          A store set that food aside for you. Miss {buyer.missesBeforeBlock} pickups within {buyer.missWindowDays} days and
+          reserving is paused for {buyer.blockDays} days. Cancelling before the pickup window starts never counts, and if a
+          miss wasn’t your fault, report a problem with that pickup from your reservations.
+        </p>
       </div>
       <p className="card-row">
         You can hold <strong>{plural(buyer.maxActiveReservations, 'reservation')}</strong> at a time.{' '}

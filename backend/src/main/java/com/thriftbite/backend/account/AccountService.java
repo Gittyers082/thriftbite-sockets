@@ -16,6 +16,7 @@ import com.thriftbite.backend.common.ApiExceptions.TooManyRequestsException;
 import com.thriftbite.backend.common.ratelimit.LoginAttempts;
 import com.thriftbite.backend.follow.FollowService;
 import com.thriftbite.backend.report.Reports;
+import com.thriftbite.backend.reservation.PickupStrikes;
 import com.thriftbite.backend.item.ItemService;
 import com.thriftbite.backend.reservation.ReservationService;
 import com.thriftbite.backend.reservation.ReservationStatus;
@@ -53,13 +54,14 @@ public class AccountService {
     private final StoreProfileService storeProfiles;
     private final FollowService follows;
     private final Reports reports;
+    private final PickupStrikes strikes;
     private final JdbcTemplate jdbc;
     private final int maxActiveReservations;
 
     public AccountService(UserRepository users, RecoveryCodes recoveryCodes, PasswordEncoder passwordEncoder,
                           LoginAttempts attempts, TokenService tokens, ReservationService reservations,
                           CartItemRepository cart, ItemService items, StoreProfileService storeProfiles,
-                          FollowService follows, Reports reports, JdbcTemplate jdbc,
+                          FollowService follows, Reports reports, PickupStrikes strikes, JdbcTemplate jdbc,
                           @Value("${app.reservations.max-active-per-buyer:2}") int maxActiveReservations) {
         this.users = users;
         this.recoveryCodes = recoveryCodes;
@@ -72,6 +74,7 @@ public class AccountService {
         this.storeProfiles = storeProfiles;
         this.follows = follows;
         this.reports = reports;
+        this.strikes = strikes;
         this.jdbc = jdbc;
         this.maxActiveReservations = maxActiveReservations;
     }
@@ -197,7 +200,7 @@ public class AccountService {
                  WHERE r.buyer_id = ? AND r.status = 'COMPLETED'
                 """.formatted(saved),
                 (rs, row) -> new BuyerSummary(rs.getBigDecimal("saved"), rs.getInt("meals"), List.of(), List.of(),
-                        rs.getLong("active"), maxActiveReservations),
+                        rs.getLong("active"), maxActiveReservations, null, 0, 0, 0),
                 buyerId, buyerId);
 
         List<Month> months = jdbc.query("""
@@ -215,7 +218,7 @@ public class AccountService {
         List<Missed> missed = jdbc.query("""
                 SELECT s.name, (COALESCE(r.expired_at, r.pickup_deadline) AT TIME ZONE ?)::date AS day
                   FROM reservations r JOIN stores s ON s.id = r.store_id
-                 WHERE r.buyer_id = ? AND r.status = 'EXPIRED'
+                 WHERE r.buyer_id = ? AND r.status = 'EXPIRED' AND NOT r.miss_excused
                    AND COALESCE(r.expired_at, r.pickup_deadline) >= now() - interval '30 days'
                  ORDER BY COALESCE(r.expired_at, r.pickup_deadline) DESC
                  LIMIT 20
@@ -224,6 +227,8 @@ public class AccountService {
                 ZONE, buyerId);
 
         return new BuyerSummary(totals.saved(), totals.mealsSaved(), months, missed,
-                totals.activeReservations(), totals.maxActiveReservations());
+                totals.activeReservations(), totals.maxActiveReservations(),
+                strikes.of(buyerId).blockedUntil(), strikes.limit(),
+                (int) strikes.window().toDays(), (int) strikes.block().toDays());
     }
 }

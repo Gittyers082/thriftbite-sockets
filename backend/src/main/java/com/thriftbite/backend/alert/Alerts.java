@@ -113,7 +113,7 @@ public class Alerts {
 
     /** The pickup time passed. Said plainly, because it also shows on the buyer's pickup record. */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void missed(UUID reservationId) {
+    public void missed(UUID reservationId, Instant blockedUntil) {
         clearReminder(reservationId, false);
         jdbc.query("""
                 SELECT r.buyer_id, r.store_id, s.name
@@ -121,7 +121,10 @@ public class Alerts {
                 """, rs -> {
                     insert(rs.getObject("buyer_id", UUID.class), "MISSED", rs.getObject("store_id", UUID.class), reservationId,
                             "You missed your pickup at " + rs.getString("name"),
-                            "The pickup time passed, so the food went back on sale. Missed pickups show on your account page.",
+                            blockedUntil == null
+                                    ? "The pickup time passed, so the food went back on sale. Missed pickups show on your account page."
+                                    : "The pickup time passed, so the food went back on sale. That's too many missed pickups "
+                                            + "in a short time, so reserving is paused for now. Your account page says until when.",
                             "/me");
                 }, reservationId);
     }

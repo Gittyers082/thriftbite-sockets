@@ -97,13 +97,13 @@ cd backend
 | POST | `/api/admin/users/{id}/unsuspend` | admin | Lift a suspension |
 | GET | `/api/admin/summary` | admin | How many stores and reports are waiting |
 | GET | `/api/admin/reports?status=` | admin | Problem reports: `open` (longest wait first) or `resolved` |
-| POST | `/api/admin/reports/{id}/resolve` | admin | Reply to the buyer and close the report |
+| POST | `/api/admin/reports/{id}/resolve` | admin | Reply to the buyer and close the report; `excuseMiss: true` also stops the missed pickup it's about counting against the buyer |
 | GET | `/api/admin/activity` | admin | What admins did, newest first |
 | WS | `/ws` | anyone | Live updates (see below); log in by sending the token as the first message |
 | GET | `/api/demo` | anyone | Demo accounts and when the demo data next resets (demo deployments only) |
 | POST | `/api/demo/login` | anyone | Log in as the demo `BUYER`, `OWNER` or `ADMIN` (demo deployments only) |
 
-Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`, `account_suspended`, `report_limit`).
+Errors use the standard [problem details](https://www.rfc-editor.org/rfc/rfc9457) JSON format, with a `code` field where the frontend needs to tell cases apart (`rate_limited`, `login_locked`, `claim_code_locked`, `account_not_approved`, `account_suspended`, `pickup_block`, `report_limit`).
 
 ### Accounts
 
@@ -152,7 +152,7 @@ A buyer can tell the admins that something went wrong: with one of their pickups
 
 A report is an accusation, so the API keeps it honest: a pickup report must be about the buyer's own reservation from the last 30 days, there's one per pickup and one open report per store, and a buyer can send 5 a day. Deleting an account keeps its reports (the store may still need looking into) but erases what the buyer wrote.
 
-Admins read reports on their Reports screen, longest wait first. Each one shows the pickup it's about and how many reports that store and that buyer have had in 90 days, because a report is one side of the story. Replying closes it: the buyer gets an alert with the reply, and the store is told nothing. If two admins answer at the same moment, one wins and the other is told it's already answered (the status check is inside the `UPDATE`).
+Admins read reports on their Reports screen, longest wait first. Each one shows the pickup it's about and how many reports that store and that buyer have had in 90 days, because a report is one side of the story. Replying closes it: the buyer gets an alert with the reply, and the store is told nothing. When the report is about a pickup the buyer missed (the store was closed, say), the admin can tick "don't count this missed pickup", which is the way out of an unfair missed-pickup block. If two admins answer at the same moment, one wins and the other is told it's already answered (the status check is inside the `UPDATE`).
 
 ### Suspending an account
 
@@ -183,6 +183,7 @@ Open screens update on their own over a WebSocket at `/ws`: a stock count drops 
 Reserving is free (buyers pay at the counter), so the API limits abuse:
 
 - A buyer holds at most **2 reservations** at a time.
+- **2 missed pickups within 30 days** pause reserving for 7 days from the latest miss (all three numbers are settings). Only pickups the buyer simply didn't come for count: not ones cancelled in time, not ones cancelled because the store was suspended, and not ones an admin excused. Checkout answers `403` with code `pickup_block` and when it ends; browsing, following and the cart still work.
 - **5 wrong claim codes** on one reservation pause code entry for 15 minutes.
 - **5 wrong passwords** from one address pause that username for that address for 15 minutes; 20 from anywhere pause it for everyone. Counting per address means a stranger who knows a username can't lock its owner out. The same limit applies to recovery codes and to the "current password" box.
 - Per-address limits on log in, sign-up, checkout and claim-code entry return `429` with `Retry-After`. Every other API call shares a generous per-address limit (1,200 per 10 minutes), so a script can't flood the API.

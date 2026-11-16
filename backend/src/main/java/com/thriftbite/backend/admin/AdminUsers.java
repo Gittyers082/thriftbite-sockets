@@ -48,7 +48,8 @@ public class AdminUsers {
             SELECT u.id, u.username, u.role, u.approved, u.demo, u.created_at, u.suspended_at, u.suspended_reason,
                    s.name AS store_name, s.slug AS store_slug,
                    (SELECT COUNT(*) FROM reservations r
-                     WHERE r.buyer_id = u.id AND r.status = 'EXPIRED' AND r.expired_at > now() - interval '30 days') AS missed,
+                     WHERE r.buyer_id = u.id AND r.status = 'EXPIRED' AND NOT r.miss_excused
+                       AND r.expired_at > now() - interval '30 days') AS missed,
                    (SELECT COUNT(*) FROM reports x
                      WHERE x.reporter_id = u.id AND x.created_at > now() - interval '90 days') AS reports_sent,
                    (SELECT COUNT(*) FROM reports x

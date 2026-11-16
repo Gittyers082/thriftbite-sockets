@@ -275,7 +275,7 @@ public class DemoData implements ApplicationRunner {
         for (User regular : regulars) {
             jdbc.update("INSERT INTO store_follows (user_id, store_id) VALUES (?, ?)", regular.getId(), sunrise.getId());
         }
-        alerts.missed(missed.getId());
+        alerts.missed(missed.getId(), null);
         alerts.pickedUp(yesterday.getId());
         // those two are old news: dated when they happened, and already read
         jdbc.update("""

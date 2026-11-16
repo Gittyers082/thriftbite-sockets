@@ -11,6 +11,7 @@ import java.util.UUID;
  * @param reporter           the buyer's username ("Deleted account" if they've left)
  * @param pickup             what was reserved and how it ended, e.g. "2 × Pandesal, reserved 12 Nov, picked up";
  *                           null when the report is about the store in general
+ * @param pickupMissed       the pickup ended as "not picked up" and still counts against the buyer
  * @param storeReports       reports about this store in the last 90 days, this one included
  * @param reporterReports    reports this buyer has sent in the last 90 days, this one included
  * @param resolvedBy         the admin who answered it
@@ -28,6 +29,7 @@ public record AdminReport(
         String storeName,
         String storeSlug,
         String pickup,
+        boolean pickupMissed,
         int storeReports,
         int reporterReports
 ) {
