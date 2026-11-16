@@ -1,6 +1,7 @@
 package com.thriftbite.backend.common;
 
 import com.thriftbite.backend.common.ApiExceptions.AccountNotApprovedException;
+import com.thriftbite.backend.common.ApiExceptions.AccountSuspendedException;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
@@ -63,6 +64,13 @@ public class ApiExceptionHandler {
     ProblemDetail notApproved(AccountNotApprovedException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
         problem.setProperty("code", "account_not_approved");
+        return problem;
+    }
+
+    @ExceptionHandler(AccountSuspendedException.class)
+    ProblemDetail suspended(AccountSuspendedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problem.setProperty("code", "account_suspended");
         return problem;
     }
 

@@ -139,6 +139,22 @@ public class Alerts {
                 }, reportId);
     }
 
+    /** The store was suspended, so the pickup is off: the buyer needs to know before they travel. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void cancelledByStoreSuspension(UUID reservationId) {
+        clearReminder(reservationId, false);
+        jdbc.query("""
+                SELECT r.buyer_id, r.store_id, s.name
+                  FROM reservations r JOIN stores s ON s.id = r.store_id WHERE r.id = ?
+                """, rs -> {
+                    insert(rs.getObject("buyer_id", UUID.class), "CANCELLED", rs.getObject("store_id", UUID.class), reservationId,
+                            "Your pickup at " + rs.getString("name") + " was cancelled",
+                            "The store isn't taking pickups on ThriftBite right now, so there's no need to go. "
+                                    + "This doesn't count as a missed pickup.",
+                            "/reservations");
+                }, reservationId);
+    }
+
     /** The buyer cancelled: nothing to tell them, but the reminder shouldn't linger. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void cancelled(UUID reservationId) {

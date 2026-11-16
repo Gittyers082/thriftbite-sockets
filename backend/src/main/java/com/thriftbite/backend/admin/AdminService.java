@@ -4,6 +4,7 @@ import com.thriftbite.backend.live.LiveChange.ApprovalsChanged;
 import org.springframework.context.ApplicationEventPublisher;
 import com.thriftbite.backend.admin.dto.AdminReport;
 import com.thriftbite.backend.admin.dto.AdminSummary;
+import com.thriftbite.backend.admin.dto.AdminUser;
 import com.thriftbite.backend.auth.dto.UserResponse;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
@@ -30,8 +31,11 @@ public class AdminService {
     private final ApplicationEventPublisher live;
     private final AdminLog log;
     private final AdminReports reports;
+    private final AdminUsers accounts;
 
-    public AdminService(UserRepository users, ApplicationEventPublisher live, AdminLog log, AdminReports reports) {
+    public AdminService(UserRepository users, ApplicationEventPublisher live, AdminLog log, AdminReports reports,
+                        AdminUsers accounts) {
+        this.accounts = accounts;
         this.log = log;
         this.reports = reports;
         this.users = users;
@@ -86,6 +90,21 @@ public class AdminService {
     @Transactional(readOnly = true)
     public List<AdminLog.Entry> activity(UUID adminId) {
         return log.recent(actor(adminId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminUser> accounts(UUID adminId, String search, String show) {
+        return accounts.list(actor(adminId), search, show);
+    }
+
+    @Transactional
+    public AdminUser suspend(UUID adminId, UUID userId, String reason) {
+        return accounts.suspend(actor(adminId), userId, reason);
+    }
+
+    @Transactional
+    public AdminUser liftSuspension(UUID adminId, UUID userId) {
+        return accounts.liftSuspension(actor(adminId), userId);
     }
 
     private User actor(UUID adminId) {

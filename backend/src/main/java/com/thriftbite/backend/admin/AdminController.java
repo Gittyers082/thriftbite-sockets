@@ -2,7 +2,9 @@ package com.thriftbite.backend.admin;
 
 import com.thriftbite.backend.admin.dto.AdminReport;
 import com.thriftbite.backend.admin.dto.AdminSummary;
+import com.thriftbite.backend.admin.dto.AdminUser;
 import com.thriftbite.backend.admin.dto.ResolveReportRequest;
+import com.thriftbite.backend.admin.dto.SuspendRequest;
 import com.thriftbite.backend.auth.TokenService;
 import com.thriftbite.backend.auth.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -54,6 +56,27 @@ public class AdminController {
     @GetMapping("/activity")
     public List<AdminLog.Entry> activity(@AuthenticationPrincipal Jwt jwt) {
         return admin.activity(TokenService.userId(jwt));
+    }
+
+    /**
+     * @param q    part of a username or store name
+     * @param show "buyers", "stores" or "suspended"; leave out for everyone
+     */
+    @GetMapping("/users")
+    public List<AdminUser> accounts(@AuthenticationPrincipal Jwt jwt, @RequestParam(defaultValue = "") String q,
+                                    @RequestParam(defaultValue = "") String show) {
+        return admin.accounts(TokenService.userId(jwt), q, show);
+    }
+
+    @PostMapping("/users/{userId}/suspend")
+    public AdminUser suspend(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID userId,
+                             @Valid @RequestBody SuspendRequest request) {
+        return admin.suspend(TokenService.userId(jwt), userId, request.reason());
+    }
+
+    @PostMapping("/users/{userId}/unsuspend")
+    public AdminUser liftSuspension(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID userId) {
+        return admin.liftSuspension(TokenService.userId(jwt), userId);
     }
 
     @PostMapping("/users/{userId}/approve")

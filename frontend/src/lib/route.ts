@@ -23,6 +23,7 @@ export const paths = {
   sales: '/owner/sales',
   admin: '/admin',
   adminReports: '/admin/reports',
+  adminUsers: '/admin/users',
   adminActivity: '/admin/activity',
   privacy: '/privacy',
   account: '/me',

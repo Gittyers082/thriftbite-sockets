@@ -167,6 +167,25 @@ public class ItemService {
         tellOpenScreens(item.getId(), item.getStore().getId());
     }
 
+    /**
+     * An admin suspended the store: everything it has up comes down. Lifting the suspension
+     * doesn't put it back; the store posts again when it's ready.
+     *
+     * @return how many listings were taken down
+     */
+    @Transactional
+    public int removeAllFor(UUID storeId, UUID adminId) {
+        List<Item> listed = items.findByStoreIdAndStatusNotOrderByExpiresAtAsc(storeId, ItemStatus.REMOVED);
+        listed.forEach(Item::remove);
+        items.flush();
+        listed.forEach(item -> {
+            events.record(item.getId(), StockEventType.REMOVED, 0, null, adminId);
+            live.publishEvent(new ItemChanged(item.getId()));
+        });
+        live.publishEvent(new StoreChanged(storeId));
+        return listed.size();
+    }
+
     // ---- helpers ----
 
     /** Sent after this transaction commits: browse pages update the listing, and the store's other screens reload. */

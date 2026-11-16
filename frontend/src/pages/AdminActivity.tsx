@@ -10,6 +10,8 @@ import { useLoad } from '../lib/useLoad'
 const actions: Record<string, string> = {
   APPROVE_STORE: 'Approved a store',
   ANSWER_REPORT: 'Answered a report',
+  SUSPEND_ACCOUNT: 'Suspended an account',
+  LIFT_SUSPENSION: 'Lifted a suspension',
 }
 
 /** Anything an admin does adds a line, so the list is worth reloading when admins' work changes. */
@@ -32,7 +34,7 @@ export function AdminActivity() {
         </div>
       </div>
       {loaded.data.length === 0 ? (
-        <Empty title="Nothing yet">Approving a store or answering a report adds a line here.</Empty>
+        <Empty title="Nothing yet">Approving a store, answering a report or suspending an account adds a line here.</Empty>
       ) : (
         <section className="card tbl-scroll">
           <table className="tbl">

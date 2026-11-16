@@ -46,6 +46,13 @@ public class User {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /** Set while an admin has the account suspended; {@link #suspendedReason} says why. */
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
+    @Column(name = "suspended_reason")
+    private String suspendedReason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -100,6 +107,22 @@ public class User {
         this.deletedAt = now;
     }
 
+    /** Locks the account out at once: logging in is refused, and every login token it holds dies. */
+    public void suspend(String reason, Instant now) {
+        this.suspendedAt = now;
+        this.suspendedReason = reason;
+        this.tokenVersion++;
+    }
+
+    public void liftSuspension() {
+        this.suspendedAt = null;
+        this.suspendedReason = null;
+    }
+
+    public boolean isSuspended() { return suspendedAt != null; }
+    public Instant getSuspendedAt() { return suspendedAt; }
+    public String getSuspendedReason() { return suspendedReason; }
+
     /** What stores see on a past reservation: the username, or "Deleted account". */
     public String getDisplayName() {
         return deletedAt == null ? username : "Deleted account";
@@ -111,6 +134,7 @@ public class User {
     public Role getRole() { return role; }
     public boolean isApproved() { return approved; }
     public boolean isDemo() { return demo; }
+    public Instant getDeletedAt() { return deletedAt; }
     public int getTokenVersion() { return tokenVersion; }
     public boolean isDeleted() { return deletedAt != null; }
     public Instant getCreatedAt() { return createdAt; }

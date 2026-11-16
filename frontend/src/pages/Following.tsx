@@ -18,6 +18,7 @@ const kinds: Record<AlertKind, { label: string; tag: string; action: string }> =
   PICKED_UP: { label: 'Picked up', tag: 'cream', action: 'See reservation' },
   MISSED: { label: 'Missed', tag: '', action: 'See your pickup record' },
   REPORT: { label: 'Report answered', tag: 'teal', action: 'See your reports' },
+  CANCELLED: { label: 'Pickup cancelled', tag: 'orange', action: 'See your reservations' },
 }
 const tints = ['var(--lime)', 'var(--orange)', 'var(--cream)']
 

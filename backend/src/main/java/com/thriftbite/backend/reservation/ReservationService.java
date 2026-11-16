@@ -201,6 +201,41 @@ public class ReservationService {
     }
 
     /**
+     * An admin suspended a store: the pickups waiting there are cancelled and each buyer is
+     * told. It was the store's doing, so it never counts as a missed pickup.
+     */
+    @Transactional
+    public int cancelAllAtStore(UUID storeId, UUID adminId) {
+        return cancelAll(reservations.findByStoreIdAndStatusOrderByPickupDeadlineAsc(storeId, ReservationStatus.RESERVED),
+                true, adminId);
+    }
+
+    /** An admin suspended a buyer: what they were holding goes back on sale. */
+    @Transactional
+    public int cancelAllOfBuyer(UUID buyerId, UUID adminId) {
+        return cancelAll(reservations.findByBuyerIdAndStatus(buyerId, ReservationStatus.RESERVED), false, adminId);
+    }
+
+    private int cancelAll(List<Reservation> active, boolean tellBuyer, UUID adminId) {
+        if (active.isEmpty()) {
+            return 0;
+        }
+        Instant now = Instant.now();
+        for (Reservation reservation : active) {
+            reservation.cancel(now);
+            if (tellBuyer) {
+                alerts.cancelledByStoreSuspension(reservation.getId());
+            } else {
+                alerts.cancelled(reservation.getId());
+            }
+            live.publishEvent(new StoreChanged(reservation.getStore().getId()));
+            live.publishEvent(new ReservationsChanged(reservation.getBuyer().getId()));
+        }
+        restock(releasesOf(active), now, adminId);
+        return active.size();
+    }
+
+    /**
      * Buyers who missed their pickup deadline lose the reservation, and the
      * food goes back on sale if it hasn't expired. Called by ExpiryJob.
      *

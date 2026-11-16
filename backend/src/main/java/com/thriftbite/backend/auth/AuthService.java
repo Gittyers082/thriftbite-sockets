@@ -9,6 +9,7 @@ import com.thriftbite.backend.auth.dto.RegisterRequest;
 import com.thriftbite.backend.auth.dto.RegisterResponse;
 import com.thriftbite.backend.auth.dto.UserResponse;
 import com.thriftbite.backend.common.ApiExceptions.AccountNotApprovedException;
+import com.thriftbite.backend.common.ApiExceptions.AccountSuspendedException;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
@@ -109,6 +110,10 @@ public class AuthService {
         loginAttempts.reset(fromHere);
 
         User user = found.get();
+        // Only someone with the right password is told the account is suspended, and why.
+        if (user.isSuspended()) {
+            throw new AccountSuspendedException(user.getSuspendedReason());
+        }
         if (!user.isApproved()) {
             throw new AccountNotApprovedException();
         }
@@ -125,7 +130,7 @@ public class AuthService {
      * which usernames exist or to guess codes.
      */
     // Not rolled back for a store still waiting for approval: its password change must stick.
-    @Transactional(noRollbackFor = AccountNotApprovedException.class)
+    @Transactional(noRollbackFor = {AccountNotApprovedException.class, AccountSuspendedException.class})
     public RecoverResponse recover(RecoverRequest request) {
         String username = normalize(request.username());
         String key = "recover|" + username;
@@ -157,6 +162,9 @@ public class AuthService {
         loginAttempts.reset(key);
         loginAttempts.reset("login|" + username);   // a lockout from wrong passwords ends here
         int codesLeft = recoveryCodes.status(user.getId()).left();
+        if (user.isSuspended()) {
+            throw new AccountSuspendedException(user.getSuspendedReason());
+        }
         if (!user.isApproved()) {
             // A store still waiting for an admin: the password is changed, but there's nothing to log in to yet.
             throw new AccountNotApprovedException();

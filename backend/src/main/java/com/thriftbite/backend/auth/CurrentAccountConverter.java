@@ -42,12 +42,13 @@ public class CurrentAccountConverter implements Converter<Jwt, AbstractAuthentic
     /**
      * The account a verified token belongs to, as it is in the database now.
      *
-     * @throws InvalidBearerTokenException if the account is gone or isn't approved, or the
+     * @throws InvalidBearerTokenException if the account is gone, suspended or not approved, or the
      *                                     password has changed since the token was issued
      */
     public User accountFor(Jwt jwt) {
         return users.findById(accountId(jwt))
                 .filter(User::isApproved)
+                .filter(user -> !user.isSuspended())
                 .filter(user -> user.getTokenVersion() == tokenVersion(jwt))
                 .orElseThrow(() -> new InvalidBearerTokenException("This login is no longer valid. Log in again."));
     }

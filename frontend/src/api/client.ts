@@ -1,5 +1,5 @@
 import type {
-  AccountSummary, AdminLogEntry, AdminReport, AdminSummary, AlertList, BatchListingRequest, CartResponse, DemoInfo, DemoRole, FollowState, FollowedStore, ItemRequest, ItemResponse, LoginResponse, PageResponse,
+  AccountSummary, AdminLogEntry, AdminReport, AdminSummary, AdminUser, AlertList, BatchListingRequest, CartResponse, DemoInfo, DemoRole, FollowState, FollowedStore, ItemRequest, ItemResponse, LoginResponse, PageResponse,
   PhotoUpload, ProblemCode, ProblemDetail, RecoverResponse, RegisterRequest, RegisterResponse, Report, ReportRequest, ReservationResponse, SalesStats, StorePage, StoreProfile,
   StoreProfileRequest, UserResponse, UsualListing,
 } from './types'
@@ -166,4 +166,8 @@ export const api = {
   adminReports: (status: 'open' | 'resolved') => request<AdminReport[]>('GET', `/api/admin/reports?status=${status}`),
   resolveReport: (reportId: string, reply: string) => request<AdminReport>('POST', `/api/admin/reports/${reportId}/resolve`, { reply }),
   adminActivity: () => request<AdminLogEntry[]>('GET', '/api/admin/activity'),
+  adminUsers: (search: string, show: '' | 'buyers' | 'stores' | 'suspended') =>
+    request<AdminUser[]>('GET', `/api/admin/users?q=${encodeURIComponent(search)}&show=${show}`),
+  suspendUser: (userId: string, reason: string) => request<AdminUser>('POST', `/api/admin/users/${userId}/suspend`, { reason }),
+  unsuspendUser: (userId: string) => request<AdminUser>('POST', `/api/admin/users/${userId}/unsuspend`),
 }

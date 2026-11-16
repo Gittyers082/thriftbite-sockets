@@ -227,7 +227,7 @@ export interface FollowedStore {
   alertsOn: boolean
 }
 
-export type AlertKind = 'DEAL' | 'PICKUP' | 'PICKED_UP' | 'MISSED' | 'REPORT'
+export type AlertKind = 'DEAL' | 'PICKUP' | 'PICKED_UP' | 'MISSED' | 'REPORT' | 'CANCELLED'
 
 export interface AlertItem {
   id: string
@@ -351,7 +351,7 @@ export interface SalesStats {
 /** Codes the API puts on errors the screens handle differently. */
 export type ProblemCode =
   | 'rate_limited' | 'login_locked' | 'claim_code_locked' | 'account_not_approved' | 'recovery_locked' | 'password_locked'
-  | 'report_limit' | 'photos_busy'
+  | 'report_limit' | 'photos_busy' | 'account_suspended'
 
 /** RFC 9457 problem details, the shape of every API error. */
 export interface ProblemDetail {
@@ -393,10 +393,32 @@ export interface AdminSummary {
 export interface AdminLogEntry {
   id: string
   adminName: string
-  action: 'APPROVE_STORE' | 'ANSWER_REPORT' | string
+  action: 'APPROVE_STORE' | 'ANSWER_REPORT' | 'SUSPEND_ACCOUNT' | 'LIFT_SUSPENSION' | string
   /** Who or what it was done to. */
   subject: string
   /** The admin's own words, where there are any. */
   note: string | null
   at: string
+}
+
+/** A buyer's or store's account as an admin sees it. */
+export interface AdminUser {
+  id: string
+  username: string
+  role: 'CONSUMER' | 'OWNER'
+  approved: boolean
+  createdAt: string
+  /** Stores only. */
+  storeName: string | null
+  storeSlug: string | null
+  /** Null unless the account is suspended. */
+  suspendedAt: string | null
+  suspendedReason: string | null
+  /** Buyers: pickups missed in the last 30 days, and reports sent in the last 90. */
+  missedPickups: number
+  reportsSent: number
+  /** Stores: reports about the store in the last 90 days. */
+  reportsAbout: number
+  /** False for accounts this admin isn't allowed to suspend. */
+  canSuspend: boolean
 }

@@ -33,6 +33,7 @@ function navFor(role: string | undefined, unread: number, waiting: AdminSummary)
     return [
       { label: 'Store approvals', short: 'Stores', path: paths.admin, icon: 'store', badge: waiting.pendingStores },
       { label: 'Reports', path: paths.adminReports, icon: 'bell', badge: waiting.openReports },
+      { label: 'Users', path: paths.adminUsers, icon: 'person' },
       { label: 'Activity', path: paths.adminActivity, icon: 'today' },
     ]
   }

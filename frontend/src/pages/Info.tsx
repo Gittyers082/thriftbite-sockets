@@ -56,7 +56,7 @@ export function NotFound() {
 const privacy: [string, string][] = [
   ['What we collect', 'Your username, your password (stored only as a one-way hash), your recovery codes (also only as hashes), your reservations, the stores you follow, your alerts (deleted after 30 days), and any problems you report. For stores, also the store’s name, address, opening hours, listings and photos. Photos are public. Before one is stored it’s redrawn, which removes everything else the file carried, such as where it was taken. We don’t ask for your email, phone number or payment details, and we don’t take payments.'],
   ['Why we collect it', 'To run reservations and pickups, to show stores the orders they need to hand over, to stop accounts that keep reserving without picking up, and to keep ThriftBite safe from fake stores and abuse.'],
-  ['Who can see it', 'A store sees your username and what you reserved, only for reservations with that store. Admins can see accounts, reservations and problem reports. A store isn’t told who reported it. We don’t sell or share your data with advertisers.'],
+  ['Who can see it', 'A store sees your username and what you reserved, only for reservations with that store. Admins can see accounts, reservations and problem reports, and can suspend an account that breaks the rules; if that happens you’re told why when you log in. A store isn’t told who reported it. We don’t sell or share your data with advertisers.'],
   ['How long we keep it', 'Your account and reservations stay until you delete your account. When you do, anything you’re holding goes back on sale, your username and recovery codes are removed, what you wrote in problem reports is erased, and your past reservations stay in stores’ records without your name. The public demo resets every few hours and deletes everything in it.'],
   ['Your rights', 'Under the Data Privacy Act of 2012 (Republic Act No. 10173), you can ask what we hold about you, correct it, download it, object to how it’s used, or have it deleted. Buyers can download their data and delete their account from the account page; stores can download theirs there and ask an admin to close the account. You can also complain to the National Privacy Commission.'],
   ['Contact', 'Questions about your data go to [PRIVACY CONTACT EMAIL]. ThriftBite is a student project built in Baguio City.'],
@@ -67,7 +67,7 @@ export function Privacy() {
     <article className="stack" style={gap(22, { maxWidth: 700 })}>
       <div className="stack" style={gap(10)}>
         <h1 className="wide" style={{ fontSize: 'clamp(30px, 4vw, 48px)', lineHeight: 1.08, letterSpacing: -1 }}>Privacy notice</h1>
-        <p className="muted">Last updated Nov 15, 2026</p>
+        <p className="muted">Last updated Nov 16, 2026</p>
         <p style={{ fontSize: 19, lineHeight: '29px' }}>ThriftBite keeps as little about you as it can and still run pickups. Here’s what that is, and what you can do about it.</p>
       </div>
       {privacy.map(([title, text]) => (
