@@ -22,6 +22,8 @@ export type LiveMessage =
   | { type: 'alerts' }
   /** The stores waiting for approval changed. */
   | { type: 'approvals' }
+  /** Admins only: a buyer sent a problem report, or an admin answered one. */
+  | { type: 'reports' }
   /** Made here, not sent by the server: the connection was down and is back, so anything may have been missed. */
   | { type: 'reconnected' }
 
@@ -73,6 +75,7 @@ function parse(data: unknown): LiveMessage | null {
     case 'reservations':
     case 'alerts':
     case 'approvals':
+    case 'reports':
       return { type: message.type }
     default:
       return null   // "ready", "auth_failed", or something newer than this page

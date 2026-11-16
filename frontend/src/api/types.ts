@@ -227,7 +227,7 @@ export interface FollowedStore {
   alertsOn: boolean
 }
 
-export type AlertKind = 'DEAL' | 'PICKUP' | 'PICKED_UP' | 'MISSED'
+export type AlertKind = 'DEAL' | 'PICKUP' | 'PICKED_UP' | 'MISSED' | 'REPORT'
 
 export interface AlertItem {
   id: string
@@ -359,4 +359,44 @@ export interface ProblemDetail {
   title?: string
   detail?: string
   code?: ProblemCode
+}
+
+/** A problem report as an admin sees it. */
+export interface AdminReport {
+  id: string
+  kind: ReportKind
+  details: string | null
+  status: 'OPEN' | 'RESOLVED'
+  reply: string | null
+  createdAt: string
+  resolvedAt: string | null
+  /** The admin who answered it. */
+  resolvedBy: string | null
+  /** The buyer's username, or "Deleted account". */
+  reporter: string
+  storeName: string
+  storeSlug: string
+  /** e.g. "2 × Pandesal, reserved 12 Nov, picked up"; null when it's about the store in general. */
+  pickup: string | null
+  /** Reports about this store, and sent by this buyer, in the last 90 days (this one included). */
+  storeReports: number
+  reporterReports: number
+}
+
+/** How much is waiting for an admin. */
+export interface AdminSummary {
+  pendingStores: number
+  openReports: number
+}
+
+/** One line of the record of what admins did. */
+export interface AdminLogEntry {
+  id: string
+  adminName: string
+  action: 'APPROVE_STORE' | 'ANSWER_REPORT' | string
+  /** Who or what it was done to. */
+  subject: string
+  /** The admin's own words, where there are any. */
+  note: string | null
+  at: string
 }

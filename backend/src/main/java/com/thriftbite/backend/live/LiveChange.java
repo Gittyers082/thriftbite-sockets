@@ -34,4 +34,8 @@ public sealed interface LiveChange {
     /** The list of stores waiting for approval changed. Sent to admins. */
     record ApprovalsChanged() implements LiveChange {
     }
+
+    /** A buyer sent a problem report, or an admin answered one: admins' screens reload. */
+    record ReportsChanged() implements LiveChange {
+    }
 }

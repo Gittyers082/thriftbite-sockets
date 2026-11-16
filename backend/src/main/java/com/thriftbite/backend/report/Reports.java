@@ -9,6 +9,8 @@ import com.thriftbite.backend.report.dto.ReportResponse;
 import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.store.StoreMemberRepository;
 import com.thriftbite.backend.store.StoreRepository;
+import com.thriftbite.backend.live.LiveChange.ReportsChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -55,8 +57,10 @@ public class Reports {
     private final JdbcTemplate jdbc;
     private final StoreRepository stores;
     private final StoreMemberRepository members;
+    private final ApplicationEventPublisher live;
 
-    Reports(JdbcTemplate jdbc, StoreRepository stores, StoreMemberRepository members) {
+    Reports(JdbcTemplate jdbc, StoreRepository stores, StoreMemberRepository members, ApplicationEventPublisher live) {
+        this.live = live;
         this.jdbc = jdbc;
         this.stores = stores;
         this.members = members;
@@ -88,6 +92,7 @@ public class Reports {
                     ? "You've already reported a problem with this pickup"
                     : "You already have an open report about this store. We'll look into that one first.");
         }
+        live.publishEvent(new ReportsChanged());   // admins' screens show it straight away
         return jdbc.queryForObject(SELECT + " WHERE r.id = ?", ROW, id);
     }
 

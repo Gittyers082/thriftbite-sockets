@@ -2,6 +2,8 @@ package com.thriftbite.backend.admin;
 
 import com.thriftbite.backend.live.LiveChange.ApprovalsChanged;
 import org.springframework.context.ApplicationEventPublisher;
+import com.thriftbite.backend.admin.dto.AdminReport;
+import com.thriftbite.backend.admin.dto.AdminSummary;
 import com.thriftbite.backend.auth.dto.UserResponse;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
@@ -26,8 +28,12 @@ public class AdminService {
 
     private final UserRepository users;
     private final ApplicationEventPublisher live;
+    private final AdminLog log;
+    private final AdminReports reports;
 
-    public AdminService(UserRepository users, ApplicationEventPublisher live) {
+    public AdminService(UserRepository users, ApplicationEventPublisher live, AdminLog log, AdminReports reports) {
+        this.log = log;
+        this.reports = reports;
         this.users = users;
         this.live = live;
     }
@@ -51,9 +57,35 @@ public class AdminService {
         if (actor(adminId).isDemo() && !user.isDemo()) {
             throw new ForbiddenException("The demo admin can only approve the demo's sample stores");
         }
+        boolean wasWaiting = !user.isApproved();
         user.approve();   // saved automatically when the transaction commits
+        if (wasWaiting) {
+            log.record(actor(adminId), "APPROVE_STORE", user.getUsername(), null);
+        }
         live.publishEvent(new ApprovalsChanged());   // other admins' screens reload
         return UserResponse.from(user);
+    }
+
+    /** How much is waiting, for the numbers on the admin's nav. */
+    @Transactional(readOnly = true)
+    public AdminSummary summary(UUID adminId) {
+        User admin = actor(adminId);
+        return new AdminSummary(pendingOwners(adminId).size(), reports.openCount(admin));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminReport> reports(UUID adminId, boolean open) {
+        return reports.list(actor(adminId), open);
+    }
+
+    @Transactional
+    public AdminReport resolveReport(UUID adminId, UUID reportId, String reply) {
+        return reports.resolve(actor(adminId), reportId, reply);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminLog.Entry> activity(UUID adminId) {
+        return log.recent(actor(adminId));
     }
 
     private User actor(UUID adminId) {

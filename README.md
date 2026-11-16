@@ -92,6 +92,10 @@ cd backend
 | GET | `/api/owner/stats?from=&to=` | owner | Sales for your store: money made, share of listed food sold, leftovers by weekday, pickups by hour, per-item results (Manila days; default the last 7 full days) |
 | GET | `/api/admin/owners/pending` | admin | Owners waiting for approval |
 | POST | `/api/admin/users/{id}/approve` | admin | Approve an owner |
+| GET | `/api/admin/summary` | admin | How many stores and reports are waiting |
+| GET | `/api/admin/reports?status=` | admin | Problem reports: `open` (longest wait first) or `resolved` |
+| POST | `/api/admin/reports/{id}/resolve` | admin | Reply to the buyer and close the report |
+| GET | `/api/admin/activity` | admin | What admins did, newest first |
 | WS | `/ws` | anyone | Live updates (see below); log in by sending the token as the first message |
 | GET | `/api/demo` | anyone | Demo accounts and when the demo data next resets (demo deployments only) |
 | POST | `/api/demo/login` | anyone | Log in as the demo `BUYER`, `OWNER` or `ADMIN` (demo deployments only) |
@@ -145,7 +149,11 @@ A buyer can tell the admins that something went wrong: with one of their pickups
 
 A report is an accusation, so the API keeps it honest: a pickup report must be about the buyer's own reservation from the last 30 days, there's one per pickup and one open report per store, and a buyer can send 5 a day. Deleting an account keeps its reports (the store may still need looking into) but erases what the buyer wrote.
 
-Reports are stored and shown to the buyer now; the admin screen for answering them is the next step.
+Admins read reports on their Reports screen, longest wait first. Each one shows the pickup it's about and how many reports that store and that buyer have had in 90 days, because a report is one side of the story. Replying closes it: the buyer gets an alert with the reply, and the store is told nothing. If two admins answer at the same moment, one wins and the other is told it's already answered (the status check is inside the `UPDATE`).
+
+### Admin activity log
+
+Admins can approve stores and close reports, so there's a record of who did what: every approval and every answer adds a line with the admin, the time, who it was about and what was said. A line is written in the same transaction as the action, so there's never one without the other, and the API has no way to change or delete a line.
 
 ### Live updates
 
@@ -176,7 +184,7 @@ Reserving is free (buyers pay at the counter), so the API limits abuse:
 - **Recovery codes** are 12 random characters, stored only as hashes. A fast hash is enough because nobody chose them (there's no dictionary to try), and guessing against the live site is stopped by the attempt limits. A wrong code and a username that doesn't exist get the same answer.
 - **Every lookup is scoped to the caller.** The user id comes from the verified token, never from the request, and a store can only reach its own listings and pickups.
 - **Rate limits use the visitor's own address.** Behind Render that is the `CF-Connecting-IP` header (set in `render.yaml`); `X-Forwarded-For` can be faked there.
-- **The demo admin is boxed in.** Anyone can log in as it, so it only sees and approves the demo's sample stores.
+- **The demo admin is boxed in.** Anyone can log in as it, so it only sees and approves the demo's sample stores, only sees and answers reports that demo buyers made about demo stores, and only sees demo admins' lines in the activity log.
 - **The frontend sends a Content Security Policy** (`frontend/vercel.json`): scripts only from the site itself, API calls and the live connection only to the site and `*.onrender.com`, and no framing by other sites. If the API moves to another domain, update `connect-src` and `img-src` there (photos load from the API).
 - **The live connection** only accepts pages from the frontend's own address (the CORS list), takes one small login message and closes on anything else, and drops browsers that stop reading.
 

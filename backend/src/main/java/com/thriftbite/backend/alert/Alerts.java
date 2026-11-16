@@ -126,6 +126,19 @@ public class Alerts {
                 }, reservationId);
     }
 
+    /** An admin answered the buyer's problem report. Nothing for a buyer who has since deleted their account. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void reportAnswered(UUID reportId) {
+        jdbc.query("""
+                SELECT r.reporter_id, r.store_id, r.reply, s.name
+                  FROM reports r JOIN stores s ON s.id = r.store_id JOIN users u ON u.id = r.reporter_id
+                 WHERE r.id = ? AND u.deleted_at IS NULL
+                """, rs -> {
+                    insert(rs.getObject("reporter_id", UUID.class), "REPORT", rs.getObject("store_id", UUID.class), null,
+                            "We answered your report about " + rs.getString("name"), rs.getString("reply"), "/me");
+                }, reportId);
+    }
+
     /** The buyer cancelled: nothing to tell them, but the reminder shouldn't linger. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void cancelled(UUID reservationId) {

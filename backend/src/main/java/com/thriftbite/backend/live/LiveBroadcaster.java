@@ -4,6 +4,7 @@ import com.thriftbite.backend.live.LiveChange.AlertsChanged;
 import com.thriftbite.backend.live.LiveChange.ApprovalsChanged;
 import com.thriftbite.backend.live.LiveChange.DealsChanged;
 import com.thriftbite.backend.live.LiveChange.ItemChanged;
+import com.thriftbite.backend.live.LiveChange.ReportsChanged;
 import com.thriftbite.backend.live.LiveChange.ReservationsChanged;
 import com.thriftbite.backend.live.LiveChange.StoreChanged;
 import jakarta.annotation.PreDestroy;
@@ -81,6 +82,7 @@ public class LiveBroadcaster {
             case ReservationsChanged c -> sessions.sendToUser(c.buyerId(), "{\"type\":\"reservations\"}");
             case AlertsChanged c -> sessions.sendToUser(c.userId(), "{\"type\":\"alerts\"}");
             case ApprovalsChanged c -> sessions.sendToAdmins("{\"type\":\"approvals\"}");
+            case ReportsChanged c -> sessions.sendToAdmins("{\"type\":\"reports\"}");
         }
     }
 

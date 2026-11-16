@@ -142,6 +142,7 @@ public class DemoData implements ApplicationRunner {
     }
 
     private void wipe() {
+        jdbc.update("DELETE FROM admin_actions WHERE demo");
         jdbc.update("DELETE FROM cart_items");
         jdbc.update("DELETE FROM item_events");
         jdbc.update("DELETE FROM reservation_items");

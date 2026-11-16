@@ -17,6 +17,7 @@ const kinds: Record<AlertKind, { label: string; tag: string; action: string }> =
   DEAL: { label: 'New deal', tag: 'lime', action: 'See the deals' },
   PICKED_UP: { label: 'Picked up', tag: 'cream', action: 'See reservation' },
   MISSED: { label: 'Missed', tag: '', action: 'See your pickup record' },
+  REPORT: { label: 'Report answered', tag: 'teal', action: 'See your reports' },
 }
 const tints = ['var(--lime)', 'var(--orange)', 'var(--cream)']
 

@@ -22,6 +22,8 @@ export const paths = {
   store: (slug: string) => `/stores/${slug}`,
   sales: '/owner/sales',
   admin: '/admin',
+  adminReports: '/admin/reports',
+  adminActivity: '/admin/activity',
   privacy: '/privacy',
   account: '/me',
   recover: '/recover',

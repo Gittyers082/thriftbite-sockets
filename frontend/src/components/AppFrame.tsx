@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import thryxHead from '../assets/thryx-head.png'
 import { homeFor, useAuth } from '../lib/auth-context'
 import { href, paths, useRoute } from '../lib/route'
+import type { AdminSummary } from '../api/types'
+import { useAdminSummary } from '../lib/useAdminSummary'
 import { useUnreadAlerts } from '../lib/useUnreadAlerts'
 import { Icon, type IconName } from './Icon'
 
@@ -17,7 +19,7 @@ interface NavItem {
   desktopOnly?: boolean
 }
 
-function navFor(role: string | undefined, unread: number): NavItem[] {
+function navFor(role: string | undefined, unread: number, waiting: AdminSummary): NavItem[] {
   if (role === 'OWNER') {
     return [
       { label: 'Today', path: paths.owner, icon: 'today' },
@@ -28,7 +30,11 @@ function navFor(role: string | undefined, unread: number): NavItem[] {
     ]
   }
   if (role === 'ADMIN') {
-    return [{ label: 'Store approvals', path: paths.admin, icon: 'store' }]
+    return [
+      { label: 'Store approvals', short: 'Stores', path: paths.admin, icon: 'store', badge: waiting.pendingStores },
+      { label: 'Reports', path: paths.adminReports, icon: 'bell', badge: waiting.openReports },
+      { label: 'Activity', path: paths.adminActivity, icon: 'today' },
+    ]
   }
   const following: NavItem[] = role === 'CONSUMER'
     ? [{ label: 'Following', short: 'Alerts', path: paths.following, icon: 'bell', badge: unread }]
@@ -54,7 +60,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const path = useRoute()
   const unread = useUnreadAlerts(user?.role === 'CONSUMER')
-  const nav = navFor(user?.role, unread)
+  const nav = navFor(user?.role, unread, useAdminSummary(user?.role === 'ADMIN'))
   // The longest matching path wins, so "Today" (/owner) isn't lit on /owner/sales.
   const current = nav.filter((item) => item.path === path || (item.path !== '/' && path.startsWith(item.path + '/')))
     .sort((a, b) => b.path.length - a.path.length)[0]?.path ?? path

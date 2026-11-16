@@ -5,6 +5,8 @@ import { Loading, NeedsAccount } from './components/States'
 import { useAuth } from './lib/auth-context'
 import { match, paths, useRoute } from './lib/route'
 import { Admin } from './pages/Admin'
+import { AdminActivity } from './pages/AdminActivity'
+import { AdminReports } from './pages/AdminReports'
 import { Auth } from './pages/Auth'
 import { Browse } from './pages/Browse'
 import { Cart } from './pages/Cart'
@@ -59,6 +61,8 @@ function page(path: string): ReactNode {
     case paths.storeProfile: return <Only role="OWNER"><StoreProfilePage /></Only>
     case paths.sales: return <Only role="OWNER"><Sales /></Only>
     case paths.admin: return <Only role="ADMIN"><Admin /></Only>
+    case paths.adminReports: return <Only role="ADMIN"><AdminReports /></Only>
+    case paths.adminActivity: return <Only role="ADMIN"><AdminActivity /></Only>
     case paths.pending: return <Pending />
     case paths.privacy: return <Privacy />
     case paths.account: return <SignedIn><Account /></SignedIn>
