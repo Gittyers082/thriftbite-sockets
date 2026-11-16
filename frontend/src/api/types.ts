@@ -14,6 +14,8 @@ export interface UserResponse {
   username: string
   role: Role
   approved: boolean
+  /** A store account that works at the store but doesn't own it: no sales, profile or staff screens. */
+  staff?: boolean
 }
 
 export interface LoginResponse {
@@ -51,6 +53,8 @@ export interface AccountSummary {
   demo: boolean
   recoveryCodesLeft: number
   recoveryCodesMadeAt: string | null
+  /** The store the account belongs to; null for buyers and admins. `owner` is false for staff. */
+  store: { name: string; owner: boolean } | null
   /** Null for store and admin accounts. */
   buyer: {
     saved: number
@@ -419,6 +423,8 @@ export interface AdminUser {
   /** Stores only. */
   storeName: string | null
   storeSlug: string | null
+  /** A staff account at that store, not its owner. */
+  staff: boolean
   /** Null unless the account is suspended. */
   suspendedAt: string | null
   suspendedReason: string | null
@@ -429,4 +435,20 @@ export interface AdminUser {
   reportsAbout: number
   /** False for accounts this admin isn't allowed to suspend. */
   canSuspend: boolean
+}
+
+/** Someone who works at the store, as its owner sees them. */
+export interface StaffMember {
+  id: string
+  username: string
+  addedAt: string
+  /** An admin has suspended this account. */
+  suspended: boolean
+}
+
+/** A new staff account, or a new password for one. The password is shown this once. */
+export interface NewStaff {
+  id: string
+  username: string
+  temporaryPassword: string
 }

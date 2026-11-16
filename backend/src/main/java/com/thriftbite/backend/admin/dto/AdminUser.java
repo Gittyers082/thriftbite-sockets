@@ -8,7 +8,8 @@ import java.util.UUID;
 /**
  * An account as an admin sees it. Never the password or recovery codes.
  *
- * @param storeName       stores only
+ * @param storeName       store accounts only
+ * @param staff           a staff account at that store, not its owner
  * @param suspendedAt     null unless the account is suspended
  * @param missedPickups   buyers: pickups missed in the last 30 days
  * @param reportsSent     buyers: problem reports sent in the last 90 days
@@ -23,6 +24,7 @@ public record AdminUser(
         Instant createdAt,
         String storeName,
         String storeSlug,
+        boolean staff,
         Instant suspendedAt,
         String suspendedReason,
         int missedPickups,

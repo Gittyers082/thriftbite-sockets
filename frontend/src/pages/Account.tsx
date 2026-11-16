@@ -266,6 +266,8 @@ function YourData({ account }: { account: AccountSummary }) {
   const [error, setError] = useState<string | null>(null)
   const active = account.buyer?.activeReservations ?? 0
   const canDelete = account.role === 'CONSUMER' && !account.demo
+  const canClose = account.store?.owner === true && !account.demo
+  const [closing, setClosing] = useState(false)
 
   const download = async () => {
     setError(null)
@@ -299,6 +301,20 @@ function YourData({ account }: { account: AccountSummary }) {
     }
   }
 
+  const close = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
+    try {
+      await api.closeStore(password)
+      logout()
+      navigate(paths.browse)
+    } catch (err) {
+      setError(problemOf(err))
+      setBusy(false)
+    }
+  }
+
   return (
     <section className="card">
       <div className="card-head"><h2>Your data</h2></div>
@@ -309,13 +325,36 @@ function YourData({ account }: { account: AccountSummary }) {
             : 'ThriftBite keeps your username, reservations and pickup record. Stores see your username only on reservations you make with them.'}{' '}
           Read the <a href={href(paths.privacy)}>privacy notice</a> for what we keep and why.
         </p>
-        {error && !confirming && <p role="alert" className="err">{error}</p>}
+        {error && !confirming && !closing && <p role="alert" className="err">{error}</p>}
         <div className="wrap-row">
           <button type="button" className="btn" disabled={busy} onClick={download}>Download my data</button>
           {canDelete && !confirming && <button type="button" className="btn danger" onClick={() => { setConfirming(true); setError(null) }}>Delete account</button>}
+          {canClose && !closing && <button type="button" className="btn danger" onClick={() => { setClosing(true); setError(null) }}>Close your store</button>}
         </div>
-        {!canDelete && account.role !== 'CONSUMER' && (
-          <p className="hint">To close a store or admin account, ask an admin. Buyers’ reservations depend on the store’s records.</p>
+        {account.store && !account.store.owner && (
+          <p className="hint">This is a staff account at {account.store.name}. The store’s owner can give it a new password or remove it.</p>
+        )}
+        {account.store?.owner && account.demo && <p className="hint">The demo store is shared, so it can’t be closed.</p>}
+        {account.role === 'ADMIN' && <p className="hint">Admin accounts can’t be deleted from here.</p>}
+        {closing && account.store && (
+          <form className="panel stack" style={gap(12, { padding: 16, borderColor: 'var(--bad)' })} onSubmit={close}>
+            <strong style={{ fontSize: 18 }}>Close {account.store.name} for good?</strong>
+            <p>
+              Your listings come down and your store’s page goes. Buyers with a pickup waiting are told not to come. Your
+              account and your staff’s accounts are deleted. Past reservations stay in buyers’ records with your store’s name.
+              This can’t be undone, so download your data first if you want a copy.
+            </p>
+            <div className="field" style={{ maxWidth: 360 }}>
+              <label htmlFor="close-password">Your password, to confirm it’s you</label>
+              <input id="close-password" className="input" type="password" autoComplete="current-password" required maxLength={72}
+                value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            {error && <p role="alert" className="err">{error}</p>}
+            <div className="wrap-row">
+              <button type="button" className="btn" onClick={() => { setClosing(false); setError(null); setPassword('') }}>Keep my store</button>
+              <button type="submit" className="btn danger" disabled={busy}>{busy ? 'Closing…' : 'Close the store'}</button>
+            </div>
+          </form>
         )}
         {confirming && (
           <form className="panel stack" style={gap(12, { padding: 16, borderColor: 'var(--bad)' })} onSubmit={remove}>

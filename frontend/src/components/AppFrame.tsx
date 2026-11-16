@@ -19,14 +19,17 @@ interface NavItem {
   desktopOnly?: boolean
 }
 
-function navFor(role: string | undefined, unread: number, waiting: AdminSummary): NavItem[] {
+function navFor(role: string | undefined, staff: boolean, unread: number, waiting: AdminSummary): NavItem[] {
   if (role === 'OWNER') {
+    // Staff do the counter work. Sales figures and the store's profile are the owner's.
+    const ownersOnly: NavItem[] = staff ? [] : [{ label: 'Sales', path: paths.sales, icon: 'sales' }]
+    const profile: NavItem[] = staff ? [] : [{ label: 'Store profile', short: 'Store', path: paths.storeProfile, icon: 'store' }]
     return [
       { label: 'Today', path: paths.owner, icon: 'today' },
-      { label: 'Sales', path: paths.sales, icon: 'sales' },
+      ...ownersOnly,
       { label: 'New listing', short: 'New', path: paths.newListing, icon: 'plus' },
-      { label: 'Post again', path: paths.postAgain, icon: 'plus', desktopOnly: true },
-      { label: 'Store profile', short: 'Store', path: paths.storeProfile, icon: 'store' },
+      { label: 'Post again', short: 'Again', path: paths.postAgain, icon: 'plus', desktopOnly: !staff },
+      ...profile,
     ]
   }
   if (role === 'ADMIN') {
@@ -61,7 +64,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const path = useRoute()
   const unread = useUnreadAlerts(user?.role === 'CONSUMER')
-  const nav = navFor(user?.role, unread, useAdminSummary(user?.role === 'ADMIN'))
+  const nav = navFor(user?.role, user?.staff === true, unread, useAdminSummary(user?.role === 'ADMIN'))
   // The longest matching path wins, so "Today" (/owner) isn't lit on /owner/sales.
   const current = nav.filter((item) => item.path === path || (item.path !== '/' && path.startsWith(item.path + '/')))
     .sort((a, b) => b.path.length - a.path.length)[0]?.path ?? path

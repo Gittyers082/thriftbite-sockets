@@ -292,6 +292,11 @@ public class DemoData implements ApplicationRunner {
         jdbc.update(posted, "85 minutes", buyer.getId(), lola.store().getId());
         jdbc.update(posted, "2 hours", buyer.getId(), pinegrove.store().getId());
 
+        // Someone who works the counter at Sunrise, so the owner's staff list has a person in it.
+        User counterStaff = user("ana.sunrise", Role.OWNER, true, unusableHash);
+        users.flush();
+        jdbc.update("INSERT INTO store_members (store_id, user_id, role) VALUES (?, ?, 'STAFF')", sunrise.getId(), counterStaff.getId());
+
         // Problem reports: one of the buyer's that an admin has answered, and one still waiting.
         jdbc.update("""
                 INSERT INTO reports (reporter_id, store_id, reservation_id, kind, details, status, reply, created_at, resolved_at)

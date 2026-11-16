@@ -21,11 +21,17 @@ import com.thriftbite.backend.item.ItemService;
 import com.thriftbite.backend.reservation.ReservationService;
 import com.thriftbite.backend.reservation.ReservationStatus;
 import com.thriftbite.backend.reservation.dto.ReservationResponse;
+import com.thriftbite.backend.live.LiveChange.DealsChanged;
+import com.thriftbite.backend.store.StaffService;
+import com.thriftbite.backend.store.Store;
 import com.thriftbite.backend.store.StoreProfileService;
+import com.thriftbite.backend.store.StoreRepository;
+import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.Role;
 import com.thriftbite.backend.user.User;
 import com.thriftbite.backend.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,13 +61,19 @@ public class AccountService {
     private final FollowService follows;
     private final Reports reports;
     private final PickupStrikes strikes;
+    private final StoreService stores;
+    private final StoreRepository storeRepository;
+    private final StaffService staff;
+    private final ApplicationEventPublisher live;
     private final JdbcTemplate jdbc;
     private final int maxActiveReservations;
 
     public AccountService(UserRepository users, RecoveryCodes recoveryCodes, PasswordEncoder passwordEncoder,
                           LoginAttempts attempts, TokenService tokens, ReservationService reservations,
                           CartItemRepository cart, ItemService items, StoreProfileService storeProfiles,
-                          FollowService follows, Reports reports, PickupStrikes strikes, JdbcTemplate jdbc,
+                          FollowService follows, Reports reports, PickupStrikes strikes, StoreService stores,
+                          StoreRepository storeRepository, StaffService staff, ApplicationEventPublisher live,
+                          JdbcTemplate jdbc,
                           @Value("${app.reservations.max-active-per-buyer:2}") int maxActiveReservations) {
         this.users = users;
         this.recoveryCodes = recoveryCodes;
@@ -75,6 +87,10 @@ public class AccountService {
         this.follows = follows;
         this.reports = reports;
         this.strikes = strikes;
+        this.stores = stores;
+        this.storeRepository = storeRepository;
+        this.staff = staff;
+        this.live = live;
         this.jdbc = jdbc;
         this.maxActiveReservations = maxActiveReservations;
     }
@@ -84,7 +100,8 @@ public class AccountService {
         User user = account(userId);
         RecoveryCodes.Status codes = recoveryCodes.status(userId);
         return new AccountResponse(user.getUsername(), user.getRole(), user.getCreatedAt(), user.isDemo(),
-                codes.left(), codes.madeAt(), user.getRole() == Role.CONSUMER ? buyerSummary(userId) : null);
+                codes.left(), codes.madeAt(), user.getRole() == Role.CONSUMER ? buyerSummary(userId) : null,
+                storeAccount(userId));
     }
 
     /**
@@ -102,7 +119,7 @@ public class AccountService {
         user.changePassword(passwordEncoder.encode(newPassword));
         users.saveAndFlush(user);   // so the new token carries the new version
         TokenService.IssuedToken token = tokens.issue(user);
-        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user));
+        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user, stores.isStaff(user.getId())));
     }
 
     /** Replaces the recovery codes. The old ones stop working. */
@@ -136,7 +153,8 @@ public class AccountService {
     public void delete(UUID userId, String password) {
         User user = account(userId);
         if (user.getRole() != Role.CONSUMER) {
-            throw new ForbiddenException("Store and admin accounts can't be deleted here. Ask an admin to close the account.");
+            throw new ForbiddenException("This is for buyers' accounts. A store's owner closes the store instead, "
+                    + "and removes staff accounts from the store profile.");
         }
         confirmPassword(user, password);
 
@@ -160,7 +178,39 @@ public class AccountService {
         users.saveAndFlush(fresh);
     }
 
+    /**
+     * The owner closes the store for good. Buyers with a pickup waiting are told not to come,
+     * the listings and the store's page go, and every account of the store (the owner's and
+     * the staff's) is deleted. The store's row stays, so past reservations still name it.
+     */
+    @Transactional
+    public void closeStore(UUID userId, String password) {
+        User owner = account(userId);
+        UUID storeId = stores.ownedStoreIdFor(userId);   // refuses staff, buyers and admins
+        confirmPassword(owner, password);
+
+        reservations.cancelAllAtStore(storeId, userId);
+        items.removeAllFor(storeId, userId);
+        // Cancelling cleared Hibernate's session, so everything is loaded fresh from here on.
+        Store store = storeRepository.findById(storeId).orElseThrow(() -> new NotFoundException("Store not found"));
+        store.close(Instant.now());
+        storeRepository.saveAndFlush(store);
+        jdbc.update("DELETE FROM store_follows WHERE store_id = ?", storeId);
+        jdbc.update("DELETE FROM photos WHERE store_id = ?", storeId);
+        jdbc.queryForList("SELECT user_id FROM store_members WHERE store_id = ?", UUID.class, storeId)
+                .forEach(memberId -> staff.scrub(account(memberId)));
+        live.publishEvent(new DealsChanged());   // browse pages drop the store's food
+    }
+
     // ---- helpers ----
+
+    private AccountResponse.StoreAccount storeAccount(UUID userId) {
+        List<AccountResponse.StoreAccount> found = jdbc.query("""
+                SELECT s.name, m.role = 'OWNER' AS owner
+                  FROM store_members m JOIN stores s ON s.id = m.store_id WHERE m.user_id = ?
+                """, (rs, row) -> new AccountResponse.StoreAccount(rs.getString("name"), rs.getBoolean("owner")), userId);
+        return found.isEmpty() ? null : found.get(0);
+    }
 
     private User account(UUID userId) {
         return users.findById(userId).orElseThrow(() -> new NotFoundException("User no longer exists"));

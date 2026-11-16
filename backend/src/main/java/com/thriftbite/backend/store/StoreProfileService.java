@@ -41,7 +41,7 @@ public class StoreProfileService {
 
     @Transactional
     public StoreResponse update(UUID userId, StoreProfileRequest request) {
-        Store store = ownStore(userId);
+        Store store = ownedStore(userId);
         if (store.getVersion() != request.version()) {
             throw new ConflictException("The store profile changed since you loaded it. Reload and try again.");
         }
@@ -61,6 +61,12 @@ public class StoreProfileService {
 
     private Store ownStore(UUID userId) {
         return stores.findById(storeService.storeIdFor(userId))
+                .orElseThrow(() -> new NotFoundException("Store not found"));
+    }
+
+    /** For changing the profile, which is the owner's to change. */
+    private Store ownedStore(UUID userId) {
+        return stores.findById(storeService.ownedStoreIdFor(userId))
                 .orElseThrow(() -> new NotFoundException("Store not found"));
     }
 

@@ -118,7 +118,7 @@ public class AuthService {
             throw new AccountNotApprovedException();
         }
         TokenService.IssuedToken token = tokens.issue(user);
-        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user));
+        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user, stores.isStaff(user.getId())));
     }
 
     /**
@@ -170,7 +170,7 @@ public class AuthService {
             throw new AccountNotApprovedException();
         }
         TokenService.IssuedToken token = tokens.issue(user);
-        return new RecoverResponse(token.value(), token.expiresAt(), UserResponse.from(user), codesLeft);
+        return new RecoverResponse(token.value(), token.expiresAt(), UserResponse.from(user, stores.isStaff(user.getId())), codesLeft);
     }
 
     private static Duration longer(Duration a, Duration b) {
@@ -183,7 +183,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public UserResponse currentUser(UUID userId) {
         return users.findById(userId)
-                .map(UserResponse::from)
+                .map(user -> UserResponse.from(user, stores.isStaff(userId)))
                 .orElseThrow(() -> new NotFoundException("User no longer exists"));
     }
 

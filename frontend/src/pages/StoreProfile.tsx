@@ -1,6 +1,7 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { ApiError, api, photoUrl } from '../api/client'
 import { PhotoPicker } from '../components/PhotoPicker'
+import { StaffSection } from '../components/StaffSection'
 import type { StoreProfile, Weekday } from '../api/types'
 import { Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
@@ -59,7 +60,12 @@ export function StoreProfilePage() {
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading label="Loading your store profile…" />
   // The key starts the form over from the saved profile whenever a newer one is loaded.
-  return <ProfileForm key={loaded.data.version} store={loaded.data} onReload={loaded.reload} />
+  return (
+    <div className="stack" style={gap(32)}>
+      <ProfileForm key={loaded.data.version} store={loaded.data} onReload={loaded.reload} />
+      <StaffSection />
+    </div>
+  )
 }
 
 function ProfileForm({ store, onReload }: { store: StoreProfile; onReload: () => void }) {

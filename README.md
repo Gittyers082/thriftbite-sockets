@@ -76,6 +76,11 @@ cd backend
 | DELETE | `/api/owner/items/{id}` | owner | Remove a listing |
 | GET | `/api/owner/items/usual?for=` | owner | "Post again": what the store usually lists and how it went last time, for today or tomorrow |
 | POST | `/api/owner/items/batch` | owner | Post several listings with one pickup window, all or nothing |
+| GET | `/api/owner/staff` | owner | The store's staff accounts (the owner only, not staff) |
+| POST | `/api/owner/staff` | owner | Add a staff account; returns a temporary password, once |
+| POST | `/api/owner/staff/{id}/password` | owner | Give a staff member a new temporary password and log them out |
+| DELETE | `/api/owner/staff/{id}` | owner | Remove a staff account |
+| POST | `/api/account/close-store` | owner | Close the store for good (needs the owner's password) |
 | POST | `/api/owner/photos` | owner | Upload a photo (`multipart/form-data`, field `file`, JPG or PNG up to 6 MB); put the `id` it returns on a listing or the store profile as `photoId` |
 | GET | `/api/photos/{id}` | anyone | A photo as a JPEG; add `?size=thumb` for the small one used in lists |
 | GET | `/api/owner/store` | owner | Your store profile |
@@ -154,12 +159,25 @@ A report is an accusation, so the API keeps it honest: a pickup report must be a
 
 Admins read reports on their Reports screen, longest wait first. Each one shows the pickup it's about and how many reports that store and that buyer have had in 90 days, because a report is one side of the story. Replying closes it: the buyer gets an alert with the reply, and the store is told nothing. When the report is about a pickup the buyer missed (the store was closed, say), the admin can tick "don't count this missed pickup", which is the way out of an unfair missed-pickup block. If two admins answer at the same moment, one wins and the other is told it's already answered (the status check is inside the `UPDATE`).
 
+### Staff accounts
+
+A store's owner can give the people who work the counter their own login, up to five.
+
+- **Staff do the counter work**: list food, hand over pickups, upload photos. **The owner's business stays the owner's**: sales figures, the store profile, staff accounts and closing the store all answer `403` for staff. The check is on the server (`ownedStoreIdFor`), not just a hidden menu.
+- **No shared passwords.** The owner picks a username and the server makes a temporary password, shown once and stored only as a hash. Staff are store accounts with the `STAFF` role in `store_members`, which has allowed it since the stores migration.
+- **The owner is the way back in.** This app has no email, so "New password" on the staff list replaces a forgotten one and logs that person out everywhere. Removing a staff account does the same and keeps what they listed.
+- **A store answers for its staff.** While the owner is suspended, staff can't post or hand over under the store's name. Suspending one staff member locks out only that person.
+
+### Closing a store
+
+An owner can close their store from the account page, with their password. Buyers with a pickup waiting are told not to come (it never counts as a missed pickup), the listings, photos and store page go, followers stop following it, and the owner's and the staff's accounts are deleted. The store's row stays, so past reservations and reports still name it, and its page address isn't handed to someone else. "Download my data" is there to take a copy first.
+
 ### Suspending an account
 
 An admin can suspend a buyer or a store from the Users screen, with a reason.
 
 - **It takes effect at once.** Suspending bumps the account's token version, so the login it already holds stops working on its next request, and logging in again is refused with the reason. Only someone with the right password is told the account is suspended.
-- **A suspended store** disappears from the app: its listings come down and its page is gone. Pickups still waiting there are cancelled, and each buyer gets an alert not to go. That never counts as a missed pickup.
+- **A suspended store owner's store** disappears from the app: its listings come down and its page is gone. Pickups still waiting there are cancelled, and each buyer gets an alert not to go. That never counts as a missed pickup.
 - **A suspended buyer's** reservations are cancelled and the food goes back on sale.
 - **Lifting it** lets the account log in again. A store's old listings stay down; it posts again when it's ready.
 - **Who can't be suspended:** admins, and, by the demo admin, the three accounts every demo visitor logs in with (one visitor shouldn't be able to break the demo for the next).

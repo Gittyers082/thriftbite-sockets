@@ -68,6 +68,10 @@ public class Store {
     @Column(name = "photo_id")
     private UUID photoId;
 
+    /** Set when the owner closed the store for good. */
+    @Column(name = "closed_at")
+    private Instant closedAt;
+
     /** Opening hours per day. A day with no entry is closed. */
     @ElementCollection
     @CollectionTable(name = "store_hours", joinColumns = @JoinColumn(name = "store_id"))
@@ -138,6 +142,13 @@ public class Store {
         this.photoId = photoId;
     }
 
+    /** Closes the store for good. Its page, listings and accounts go; its past reservations stay. */
+    public void close(Instant now) {
+        this.closedAt = now;
+        this.photoId = null;
+    }
+
+    public boolean isClosed() { return closedAt != null; }
     public UUID getId() { return id; }
     public UUID getPhotoId() { return photoId; }
     public String getSlug() { return slug; }

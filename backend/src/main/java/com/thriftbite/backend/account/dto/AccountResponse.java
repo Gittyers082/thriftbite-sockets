@@ -14,6 +14,7 @@ import java.util.List;
  * @param recoveryCodesLeft    unused recovery codes
  * @param recoveryCodesMadeAt  when the current set was made; null if the account has none
  * @param buyer                savings and pickup record; null for store and admin accounts
+ * @param store                which store the account belongs to; null for buyers and admins
  */
 public record AccountResponse(
         String username,
@@ -22,8 +23,13 @@ public record AccountResponse(
         boolean demo,
         int recoveryCodesLeft,
         Instant recoveryCodesMadeAt,
-        BuyerSummary buyer
+        BuyerSummary buyer,
+        StoreAccount store
 ) {
+
+    /** @param owner false for a staff account, which the store's owner manages */
+    public record StoreAccount(String name, boolean owner) {
+    }
 
     /**
      * @param saved          usual price minus price paid, over everything picked up

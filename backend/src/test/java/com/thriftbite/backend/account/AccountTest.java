@@ -188,7 +188,7 @@ class AccountTest extends ApiTestSupport {
     void storeAccountsCantDeleteThemselves() throws Exception {
         delete(tokenFor(Role.OWNER), PASSWORD)
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail", startsWith("Store and admin accounts")));
+                .andExpect(jsonPath("$.detail", startsWith("This is for buyers' accounts")));
     }
 
     // --- helpers ---

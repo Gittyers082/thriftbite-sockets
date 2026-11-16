@@ -52,6 +52,13 @@ public class AccountController {
         return accounts.export(TokenService.userId(jwt));
     }
 
+    /** The owner closes the store for good (see AccountService). */
+    @PostMapping("/close-store")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void closeStore(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PasswordRequest request) {
+        accounts.closeStore(TokenService.userId(jwt), request.password());
+    }
+
     /** POST rather than DELETE, because it needs the password in the body. */
     @PostMapping("/delete")
     @ResponseStatus(HttpStatus.NO_CONTENT)

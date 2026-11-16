@@ -118,10 +118,11 @@ function UserRow({ account, first, onChanged }: { account: AdminUser; first: boo
           <div style={{ minWidth: 0 }}>
             <strong>{account.username}</strong>
             <p className="hint">
+              {isStore && account.staff ? 'Staff at ' : isStore ? 'Store: ' : ''}
               {isStore
                 ? account.storeSlug && account.approved
-                  ? <>Store: <a href={href(paths.store(account.storeSlug))}>{account.storeName}</a></>
-                  : <>Store: {account.storeName}{!account.approved && ' (waiting for approval)'}</>
+                  ? <a href={href(paths.store(account.storeSlug))}>{account.storeName}</a>
+                  : <>{account.storeName}{!account.approved && ' (waiting for approval)'}</>
                 : 'Buyer'}
               , joined {dayOf(account.createdAt)}
             </p>
@@ -154,7 +155,9 @@ function UserRow({ account, first, onChanged }: { account: AdminUser; first: boo
               ? <span id={`${id}-hint`} role="alert" className="err">Give a reason, in a sentence.</span>
               : <span id={`${id}-hint`} className="hint">
                   They’ll see this when they try to log in. {isStore
-                    ? 'The store’s listings come down, and pickups waiting there are cancelled and the buyers told.'
+                    ? account.staff
+                      ? 'Only this person is locked out. The store stays open.'
+                      : 'The store’s listings come down, and pickups waiting there are cancelled and the buyers told.'
                     : 'Anything they’ve reserved goes back on sale.'}
                 </span>}
           </div>

@@ -15,6 +15,7 @@ public interface StoreMemberRepository extends JpaRepository<StoreMember, StoreM
     Optional<StoreMember> findByIdUserId(UUID userId);
 
     /** Whether an admin has approved someone at this store. Until then the store isn't public. */
-    @Query("select count(m) > 0 from StoreMember m where m.store.id = :storeId and m.user.approved = true and m.user.suspendedAt is null")
+    @Query("select count(m) > 0 from StoreMember m where m.store.id = :storeId and m.role = com.thriftbite.backend.store.StoreRole.OWNER "
+            + "and m.user.approved = true and m.user.suspendedAt is null and m.store.closedAt is null")
     boolean hasApprovedMember(@Param("storeId") UUID storeId);
 }

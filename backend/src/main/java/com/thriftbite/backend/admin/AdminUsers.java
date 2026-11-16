@@ -29,7 +29,7 @@ import java.util.UUID;
 /**
  * The admins' list of accounts, and suspending one.
  *
- * Suspending locks the account out at once. A suspended store's listings come down and
+ * Suspending locks the account out at once. A suspended store owner's listings come down and
  * the pickups waiting there are cancelled, with an alert to each buyer so nobody travels
  * for food that isn't there. A suspended buyer's reservations go back on sale.
  *
@@ -46,7 +46,7 @@ public class AdminUsers {
 
     private static final String SELECT = """
             SELECT u.id, u.username, u.role, u.approved, u.demo, u.created_at, u.suspended_at, u.suspended_reason,
-                   s.name AS store_name, s.slug AS store_slug,
+                   s.name AS store_name, s.slug AS store_slug, COALESCE(m.role = 'STAFF', false) AS staff,
                    (SELECT COUNT(*) FROM reservations r
                      WHERE r.buyer_id = u.id AND r.status = 'EXPIRED' AND NOT r.miss_excused
                        AND r.expired_at > now() - interval '30 days') AS missed,
@@ -111,12 +111,15 @@ public class AdminUsers {
         users.saveAndFlush(target);
 
         String outcome;
-        if (target.getRole() == Role.OWNER) {
-            UUID storeId = storeOf(target);
-            int cancelled = storeId == null ? 0 : reservations.cancelAllAtStore(storeId, admin.getId());
-            int removed = storeId == null ? 0 : items.removeAllFor(storeId, admin.getId());
+        UUID ownedStore = ownedStoreOf(target);
+        if (ownedStore != null) {
+            int cancelled = reservations.cancelAllAtStore(ownedStore, admin.getId());
+            int removed = items.removeAllFor(ownedStore, admin.getId());
             live.publishEvent(new DealsChanged());   // browse pages drop the store's food
             outcome = count(removed, "listing") + " taken down, " + count(cancelled, "pickup") + " cancelled";
+        } else if (target.getRole() == Role.OWNER) {
+            // A staff account: only that person is locked out. The store carries on.
+            outcome = "staff account, the store stays open";
         } else {
             outcome = count(reservations.cancelAllOfBuyer(target.getId(), admin.getId()), "reservation") + " cancelled";
         }
@@ -160,8 +163,10 @@ public class AdminUsers {
         return found.get(0);
     }
 
-    private UUID storeOf(User owner) {
-        List<UUID> stores = jdbc.queryForList("SELECT store_id FROM store_members WHERE user_id = ?", UUID.class, owner.getId());
+    /** The store this account owns; null for a buyer or a staff account. */
+    private UUID ownedStoreOf(User user) {
+        List<UUID> stores = jdbc.queryForList(
+                "SELECT store_id FROM store_members WHERE user_id = ? AND role = 'OWNER'", UUID.class, user.getId());
         return stores.isEmpty() ? null : stores.get(0);
     }
 
@@ -171,7 +176,7 @@ public class AdminUsers {
             String username = rs.getString("username");
             return new AdminUser(rs.getObject("id", UUID.class), username, Role.valueOf(rs.getString("role")),
                     rs.getBoolean("approved"), rs.getTimestamp("created_at").toInstant(),
-                    rs.getString("store_name"), rs.getString("store_slug"),
+                    rs.getString("store_name"), rs.getString("store_slug"), rs.getBoolean("staff"),
                     suspended == null ? null : suspended.toInstant(), rs.getString("suspended_reason"),
                     rs.getInt("missed"), rs.getInt("reports_sent"), rs.getInt("reports_about"),
                     !(admin.isDemo() && SHARED_DEMO_LOGINS.contains(username)));

@@ -1,6 +1,7 @@
 import type {
-  AccountSummary, AdminLogEntry, AdminReport, AdminSummary, AdminUser, AlertList, BatchListingRequest, CartResponse, DemoInfo, DemoRole, FollowState, FollowedStore, ItemRequest, ItemResponse, LoginResponse, PageResponse,
-  PhotoUpload, ProblemCode, ProblemDetail, RecoverResponse, RegisterRequest, RegisterResponse, Report, ReportRequest, ReservationResponse, SalesStats, StorePage, StoreProfile,
+  AccountSummary, AdminLogEntry, AdminReport, AdminSummary, AdminUser, AlertList, BatchListingRequest, CartResponse, DemoInfo, DemoRole, FollowState,
+  FollowedStore, ItemRequest, ItemResponse, LoginResponse, NewStaff, PageResponse, PhotoUpload, ProblemCode, ProblemDetail, RecoverResponse,
+  RegisterRequest, RegisterResponse, Report, ReportRequest, ReservationResponse, SalesStats, StaffMember, StorePage, StoreProfile,
   StoreProfileRequest, UserResponse, UsualListing,
 } from './types'
 
@@ -148,6 +149,11 @@ export const api = {
     return request<PhotoUpload>('POST', '/api/owner/photos', form)
   },
   myStore: () => request<StoreProfile>('GET', '/api/owner/store'),
+  staff: () => request<StaffMember[]>('GET', '/api/owner/staff'),
+  addStaff: (username: string) => request<NewStaff>('POST', '/api/owner/staff', { username }),
+  newStaffPassword: (staffId: string) => request<NewStaff>('POST', `/api/owner/staff/${staffId}/password`),
+  removeStaff: (staffId: string) => request<void>('DELETE', `/api/owner/staff/${staffId}`),
+  closeStore: (password: string) => request<void>('POST', '/api/account/close-store', { password }),
   saveStore: (body: StoreProfileRequest) => request<StoreProfile>('PUT', '/api/owner/store', body),
   ownerPickups: () => request<ReservationResponse[]>('GET', '/api/owner/reservations'),
   completePickup: (id: string, claimCode: string) =>
