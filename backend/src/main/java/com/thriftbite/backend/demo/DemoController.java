@@ -67,6 +67,6 @@ public class DemoController {
         User user = users.findByUsername(username)
                 .orElseThrow(() -> new NotFoundException("Demo account is being reset. Try again in a moment."));
         TokenService.IssuedToken token = tokens.issue(user);
-        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user));
+        return new LoginResponse(token.value(), token.expiresAt(), UserResponse.from(user));   // none of the three is staff
     }
 }

@@ -66,6 +66,27 @@ public final class ApiExceptions {
         }
     }
 
+    /** 403: the buyer missed too many pickups and can't reserve until {@code until}. */
+    public static class PickupBlockException extends RuntimeException {
+        private final java.time.Instant until;
+
+        public PickupBlockException(String message, java.time.Instant until) {
+            super(message);
+            this.until = until;
+        }
+
+        public java.time.Instant until() {
+            return until;
+        }
+    }
+
+    /** 403: an admin has suspended the account. The message tells its holder why. */
+    public static class AccountSuspendedException extends RuntimeException {
+        public AccountSuspendedException(String reason) {
+            super("This account has been suspended. Reason: " + reason);
+        }
+    }
+
     /** 403: the user is known, but isn't allowed to do this yet. */
     public static class AccountNotApprovedException extends RuntimeException {
         public AccountNotApprovedException() {

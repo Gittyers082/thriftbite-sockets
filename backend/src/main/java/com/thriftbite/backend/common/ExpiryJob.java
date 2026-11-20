@@ -1,5 +1,7 @@
 package com.thriftbite.backend.common;
 
+import com.thriftbite.backend.alert.Alerts;
+import com.thriftbite.backend.photo.Photos;
 import com.thriftbite.backend.item.StockEvents;
 import com.thriftbite.backend.reservation.ReservationService;
 import org.slf4j.Logger;
@@ -15,7 +17,9 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Housekeeping:
  * 1. reservations whose pickup deadline passed are expired and their food is restocked;
- * 2. then food past its expiry time is taken off sale (including anything just restocked).
+ * 2. then food past its expiry time is taken off sale (including anything just restocked);
+ * 3. alerts older than a month are deleted;
+ * 4. about once an hour, photos nothing shows anymore are deleted.
  *
  * It runs on a schedule, and also on demand from {@link LazyExpiryInterceptor}
  * before requests that read or change stock. Free hosting tiers put the app to
@@ -32,18 +36,27 @@ public class ExpiryJob {
 
     private static final Logger log = LoggerFactory.getLogger(ExpiryJob.class);
 
+    /** Alerts older than this are deleted: they're old news, and personal data nobody needs anymore. */
+    private static final Duration KEEP_ALERTS = Duration.ofDays(30);
+    private static final Duration PHOTO_CLEANUP_GAP = Duration.ofHours(1);
+
     private final ReservationService reservations;
     private final StockEvents stock;
+    private final Alerts alerts;
+    private final Photos photos;
     private final Duration lazyMinGap;
 
     /** One run at a time: the scheduled run and an on-demand run must not restock the same food twice. */
     private final ReentrantLock running = new ReentrantLock();
     private volatile Instant lastRun = Instant.EPOCH;
+    private volatile Instant lastPhotoCleanup = Instant.EPOCH;
 
-    public ExpiryJob(ReservationService reservations, StockEvents stock,
+    public ExpiryJob(ReservationService reservations, StockEvents stock, Alerts alerts, Photos photos,
                      @Value("${app.expiry.lazy-min-gap:PT30S}") Duration lazyMinGap) {
         this.reservations = reservations;
         this.stock = stock;
+        this.alerts = alerts;
+        this.photos = photos;
         this.lazyMinGap = lazyMinGap;
     }
 
@@ -85,6 +98,14 @@ public class ExpiryJob {
         lastRun = now;
         int missed = reservations.expireMissedPickups(now);
         int expired = stock.expireOldItems(now);
+        alerts.deleteOlderThan(now.minus(KEEP_ALERTS));
+        if (Duration.between(lastPhotoCleanup, now).compareTo(PHOTO_CLEANUP_GAP) >= 0) {
+            lastPhotoCleanup = now;
+            int photosDeleted = photos.deleteUnused();
+            if (photosDeleted > 0) {
+                log.info("Expiry run: {} unused photos deleted", photosDeleted);
+            }
+        }
         if (missed > 0 || expired > 0) {
             log.info("Expiry run: {} missed pickups, {} items expired", missed, expired);
         }

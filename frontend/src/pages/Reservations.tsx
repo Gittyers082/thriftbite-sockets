@@ -1,12 +1,18 @@
 import { useCallback, useState } from 'react'
 import { api } from '../api/client'
-import type { ReservationResponse, ReservationStatus } from '../api/types'
+import type { Report, ReservationResponse, ReservationStatus } from '../api/types'
 import { Empty, Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { dayOf, peso, spacedCode, timeOf } from '../lib/format'
+import { REPORT_WITHIN_DAYS } from '../lib/reports'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
-import { useLoad } from '../lib/useLoad'
+import type { LiveMessage } from '../lib/live'
+import { useLiveReload } from '../lib/useLive'
+import { useLoad, useNow } from '../lib/useLoad'
+
+/** The store handed the food over, or the pickup time passed. */
+const reservationsChanged = (message: LiveMessage) => message.type === 'reservations'
 
 const statusLabel: Record<ReservationStatus, [string, string]> = {
   RESERVED: ['Ready for pickup', 'lime'],
@@ -16,16 +22,28 @@ const statusLabel: Record<ReservationStatus, [string, string]> = {
 }
 
 export function Reservations() {
-  const loaded = useLoad(useCallback(() => api.myReservations(), []))
+  // The reports only decide which rows say "Reported"; if they can't be loaded the list still shows.
+  const loaded = useLoad(useCallback(
+    () => Promise.all([api.myReservations(), api.myReports().catch((): Report[] => [])]), []))
+  useLiveReload(loaded.reload, reservationsChanged)
   const [tab, setTab] = useState<'active' | 'past'>('active')
   const [confirming, setConfirming] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  const now = useNow(60_000)   // for "too long ago to report"; a render must not read the clock itself
 
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading label="Loading your reservations…" />
 
-  const active = loaded.data.filter((r) => r.status === 'RESERVED')
-  const past = loaded.data.filter((r) => r.status !== 'RESERVED')
+  const [reservations, reports] = loaded.data
+  const active = reservations.filter((r) => r.status === 'RESERVED')
+  const past = reservations.filter((r) => r.status !== 'RESERVED')
+  const reported = new Set(reports.map((report) => report.reservationId))
+  const tooOld = now - REPORT_WITHIN_DAYS * 86_400_000
+  /** "Report a problem", "Reported", or nothing once it's too long ago to look into. */
+  const reportLink = (r: ReservationResponse) =>
+    reported.has(r.id) ? <a className="small" href={href(paths.reportPickup(r.id))}>Problem reported</a>
+      : new Date(r.createdAt).getTime() < tooOld ? null
+      : <a className="small" href={href(paths.reportPickup(r.id))}>Report a problem</a>
 
   const cancel = async (r: ReservationResponse) => {
     setProblem(null)
@@ -90,6 +108,7 @@ export function Reservations() {
                   <button type="button" className="btn" onClick={() => setConfirming(r.id)}>Cancel reservation</button>
                 )}
                 <p className="hint">Cancelling before the pickup window starts never counts as a missed pickup.</p>
+                <p className="small">Store closed, or something else wrong? {reportLink(r)}</p>
               </div>
             </section>
           ))}
@@ -102,7 +121,8 @@ export function Reservations() {
         <section className="card tbl-scroll">
           <table className="tbl">
             <thead>
-              <tr><th scope="col">Date</th><th scope="col">Store</th><th scope="col">Food</th><th scope="col" className="r">Total</th><th scope="col">Status</th></tr>
+              <tr><th scope="col">Date</th><th scope="col">Store</th><th scope="col">Food</th><th scope="col" className="r">Total</th><th scope="col">Status</th>
+                <th scope="col"><span className="sr">Report a problem</span></th></tr>
             </thead>
             <tbody>
               {past.map((r) => (
@@ -112,6 +132,7 @@ export function Reservations() {
                   <td className="small">{r.items.map((l) => `${l.quantity} × ${l.name}`).join(', ')}</td>
                   <td className="r num">{peso(r.total)}</td>
                   <td><span className={`tag ${statusLabel[r.status][1]}`}>{statusLabel[r.status][0]}</span></td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{reportLink(r)}</td>
                 </tr>
               ))}
             </tbody>

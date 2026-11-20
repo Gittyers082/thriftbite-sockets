@@ -48,7 +48,7 @@ public record ReservationResponse(
     private static ReservationResponse build(Reservation r, String claimCode) {
         return new ReservationResponse(
                 r.getId(), r.getStatus(), claimCode, r.getPickupDeadline(), r.getTotal(),
-                r.getBuyer().getUsername(), r.getStore().getId(), r.getStore().getName(),
+                r.getBuyer().getDisplayName(), r.getStore().getId(), r.getStore().getName(),
                 r.getCreatedAt(), r.getCompletedAt(), r.getCancelledAt(), r.getExpiredAt(),
                 r.getItems().stream().map(Line::from).toList());
     }

@@ -23,8 +23,10 @@ import java.util.function.ToIntFunction;
 import java.util.regex.Pattern;
 
 /**
- * Per-address limits on the endpoints a script would hammer: log in, sign up,
- * checkout and claim-code entry. Everything else passes straight through.
+ * Per-address limits. The endpoints a script would hammer (log in, sign up,
+ * checkout, claim-code entry) each have a tight limit; every other API call
+ * shares one generous limit, so a script can't run up the free database's
+ * hours or drown out real visitors.
  *
  * Runs after Spring Security's filters, so a 429 still carries CORS headers
  * and the browser can read it.
@@ -33,28 +35,42 @@ import java.util.regex.Pattern;
 @Order(Ordered.LOWEST_PRECEDENCE - 10)
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    /** @param method the HTTP method the rule is for, or null for any */
     private record Rule(String name, String method, Pattern path, ToIntFunction<RateLimitProperties> limit) {
         boolean matches(HttpServletRequest request) {
-            return method.equals(request.getMethod()) && path.matcher(request.getRequestURI()).matches();
+            return (method == null || method.equals(request.getMethod()))
+                    && path.matcher(request.getRequestURI()).matches();
         }
     }
 
     private static final List<Rule> RULES = List.of(
             new Rule("login", "POST", Pattern.compile("/api/auth/login"), RateLimitProperties::loginPerWindow),
+            new Rule("recover", "POST", Pattern.compile("/api/auth/recover"), RateLimitProperties::loginPerWindow),
             new Rule("register", "POST", Pattern.compile("/api/auth/register"), RateLimitProperties::registerPerWindow),
             new Rule("demo-login", "POST", Pattern.compile("/api/demo/login"), RateLimitProperties::loginPerWindow),
             new Rule("checkout", "POST", Pattern.compile("/api/checkout"), RateLimitProperties::checkoutPerWindow),
             new Rule("claim-code", "POST", Pattern.compile("/api/owner/reservations/[^/]+/complete"),
-                    RateLimitProperties::claimCodePerWindow));
+                    RateLimitProperties::claimCodePerWindow),
+            // Opening a live connection (each one may also check a login against the database).
+            new Rule("live", "GET", Pattern.compile("/ws"), RateLimitProperties::liveConnectsPerWindow),
+            // Shrinking a photo is the most work the server does for one request.
+            new Rule("photo-upload", "POST", Pattern.compile("/api/owner/photos"), RateLimitProperties::photoUploadsPerWindow),
+            new Rule("report", "POST", Pattern.compile("/api/reports"), RateLimitProperties::reportsPerWindow),
+            // A page of listings is a page of photos, so viewing them has its own, roomier limit.
+            new Rule("photos", "GET", Pattern.compile("/api/photos/.*"), RateLimitProperties::photosPerWindow),
+            // Every other API call counts here too, whatever else it matched.
+            new Rule("general", null, Pattern.compile("/api/(?!photos/).*"), RateLimitProperties::generalPerWindow));
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
     private final RateLimitProperties properties;
+    private final ClientAddress clientAddress;
     private final Clock clock = Clock.systemUTC();
     private final FixedWindowCounter counter = new FixedWindowCounter();
 
-    public RateLimitFilter(RateLimitProperties properties) {
+    public RateLimitFilter(RateLimitProperties properties, ClientAddress clientAddress) {
         this.properties = properties;
+        this.clientAddress = clientAddress;
     }
 
     @Override
@@ -65,31 +81,29 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        Rule rule = RULES.stream().filter(r -> r.matches(request)).findFirst().orElseThrow();
-        String key = rule.name() + "|" + clientAddress(request);
+        String address = clientAddress.of(request);
         // Turn on with LOGGING_LEVEL_COM_THRIFTBITE_BACKEND_COMMON_RATELIMIT=DEBUG to check, once
         // deployed, that the address is the visitor's own and not the host's proxy.
-        log.debug("Rate limit key {} (remote {}, {}: {})", key, request.getRemoteAddr(),
+        log.debug("Rate limit address {} (remote {}, {}: {})", address, request.getRemoteAddr(),
                 properties.clientIpHeader(), properties.clientIpHeader().isBlank() ? "-" : request.getHeader(properties.clientIpHeader()));
-        Duration retryAfter = counter.hit(key, rule.limit().applyAsInt(properties), properties.window(), clock.instant());
+
+        // Count the request against every rule it matches; the longest wait wins.
+        Duration retryAfter = null;
+        for (Rule rule : RULES) {
+            if (!rule.matches(request)) {
+                continue;
+            }
+            Duration wait = counter.hit(rule.name() + "|" + address, rule.limit().applyAsInt(properties),
+                    properties.window(), clock.instant());
+            if (wait != null && (retryAfter == null || wait.compareTo(retryAfter) > 0)) {
+                retryAfter = wait;
+            }
+        }
         if (retryAfter == null) {
             chain.doFilter(request, response);
             return;
         }
         writeTooManyRequests(request, response, retryAfter);
-    }
-
-    private String clientAddress(HttpServletRequest request) {
-        String header = properties.clientIpHeader();
-        if (!header.isBlank()) {
-            String value = request.getHeader(header);
-            if (value != null && !value.isBlank()) {
-                // For X-Forwarded-For style lists, the last entry is the one our own proxy added.
-                String[] parts = value.split(",");
-                return parts[parts.length - 1].trim();
-            }
-        }
-        return request.getRemoteAddr();
     }
 
     /** Same RFC 9457 shape as every other error, written by hand because this runs outside Spring MVC. */
@@ -102,7 +116,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write("""
                 {"type":"about:blank","title":"Too Many Requests","status":429,\
-                "detail":"Too many tries from this device. Wait a few minutes and try again.",\
+                "detail":"Too many requests from this device. Wait a few minutes and try again.",\
                 "instance":"%s","code":"rate_limited"}""".formatted(request.getRequestURI().replace("\"", "")));
     }
 

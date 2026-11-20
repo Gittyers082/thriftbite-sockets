@@ -12,12 +12,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +50,9 @@ class AuthFlowTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtEncoder jwtEncoder;
 
     private MockMvc mvc;
 
@@ -141,6 +151,43 @@ class AuthFlowTest {
         mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/auth/me").header("Authorization", "Bearer not-a-real-token"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void aTokenStopsWorkingWhenItsAccountIsDeleted() throws Exception {
+        String username = uniqueName();
+        register(username, PASSWORD, "CONSUMER").andExpect(status().isCreated());
+        String token = loginToken(username, PASSWORD);
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+
+        users.delete(users.findByUsername(username).orElseThrow());
+
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /** A correctly signed token that says ADMIN, for an account the database says is a buyer. */
+    @Test
+    void theRoleComesFromTheDatabaseNotFromTheToken() throws Exception {
+        String username = uniqueName();
+        register(username, PASSWORD, "CONSUMER").andExpect(status().isCreated());
+        User buyer = users.findByUsername(username).orElseThrow();
+
+        Instant now = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("thriftbite")
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(600))
+                .subject(buyer.getId().toString())
+                .claim("roles", List.of("ADMIN"))
+                .build();
+        String token = jwtEncoder.encode(
+                JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
+
+        mvc.perform(get("/api/admin/owners/pending").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/cart").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
     }
 
     @Test

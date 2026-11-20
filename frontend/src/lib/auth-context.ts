@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { DemoRole, RegisterRequest, UserResponse } from '../api/types'
+import type { DemoRole, LoginResponse, RegisterRequest, RegisterResponse, UserResponse } from '../api/types'
 
 export interface Auth {
   user: UserResponse | null
@@ -7,7 +7,10 @@ export interface Auth {
   ready: boolean
   login: (username: string, password: string) => Promise<UserResponse>
   demoLogin: (as: DemoRole) => Promise<UserResponse>
-  register: (request: RegisterRequest) => Promise<UserResponse>
+  /** Buyers are logged in straight away; stores wait for an admin. Either way the recovery codes come back, once. */
+  register: (request: RegisterRequest) => Promise<RegisterResponse>
+  /** Switches to a login the API just handed back (after a password change or reset). */
+  adopt: (login: LoginResponse) => UserResponse
   logout: () => void
 }
 

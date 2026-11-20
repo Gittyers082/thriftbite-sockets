@@ -6,6 +6,8 @@ export interface Loaded<T> {
   error: unknown
   loading: boolean
   reload: () => void
+  /** Changes the loaded data in place, e.g. when a live update says one number moved. */
+  mutate: (change: (data: T) => T) => void
 }
 
 interface Result<T> {
@@ -34,12 +36,16 @@ export function useLoad<T>(load: () => Promise<T>): Loaded<T> {
   }, [load, version])
 
   const reload = useCallback(() => setVersion((v) => v + 1), [])
+  const mutate = useCallback((change: (data: T) => T) => {
+    setResult((r) => (r && r.data !== undefined ? { ...r, data: change(r.data) } : r))
+  }, [])
   const fresh = result !== null && result.load === load && result.version === version
   return {
     data: result?.data,
     error: fresh ? result.error : undefined,
     loading: !fresh,
     reload,
+    mutate,
   }
 }
 

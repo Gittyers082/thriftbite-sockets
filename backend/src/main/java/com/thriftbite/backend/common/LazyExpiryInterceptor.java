@@ -30,7 +30,7 @@ public class LazyExpiryInterceptor implements HandlerInterceptor, WebMvcConfigur
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(this).addPathPatterns(
-                "/api/items", "/api/items/**", "/api/cart/**", "/api/checkout",
+                "/api/items", "/api/items/**", "/api/stores/**", "/api/cart/**", "/api/checkout",
                 "/api/reservations", "/api/reservations/**", "/api/owner/**");
     }
 }

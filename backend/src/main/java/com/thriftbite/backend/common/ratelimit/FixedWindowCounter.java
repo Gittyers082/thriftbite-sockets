@@ -53,6 +53,12 @@ final class FixedWindowCounter {
         return Duration.between(now, window.start().plus(length));
     }
 
+    /** How many events {@code key} has in its current window. Doesn't count. */
+    int count(String key, Duration length, Instant now) {
+        Window window = windows.get(key);
+        return window == null || !now.isBefore(window.start().plus(length)) ? 0 : window.count();
+    }
+
     void reset(String key) {
         windows.remove(key);
     }

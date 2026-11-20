@@ -20,6 +20,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     List<User> findByRoleAndApprovedFalseOrderByCreatedAtAsc(Role role);
 
+    List<User> findByRoleAndApprovedFalseAndDemoTrueOrderByCreatedAtAsc(Role role);
+
     /**
      * Loads a user and locks their row until the transaction ends (SELECT ... FOR UPDATE).
      * Checkout uses it so two checkouts by the same buyer run one after the other,

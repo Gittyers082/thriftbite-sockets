@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, getToken, setToken, setUnauthorizedHandler } from '../api/client'
+import { liveLoginChanged } from './live'
 import type { DemoRole, LoginResponse, RegisterRequest, UserResponse } from '../api/types'
 import { AuthContext, type Auth } from './auth-context'
 
@@ -19,6 +20,7 @@ function savedUser(): UserResponse | null {
 
 function save(response: LoginResponse | null): void {
   setToken(response?.token ?? null)
+  liveLoginChanged()
   try {
     if (response) {
       localStorage.setItem(USER_KEY, JSON.stringify(response.user))
@@ -67,9 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register: async (request: RegisterRequest) => {
         const created = await api.register(request)
         // Buyers can go straight in; stores wait for an admin.
-        if (created.approved) return start(await api.login(request.username, request.password))
+        if (created.approved) start(await api.login(request.username, request.password))
         return created
       },
+      adopt: start,
       logout,
     }
   }, [user, ready, logout])

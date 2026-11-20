@@ -1,10 +1,12 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
-import { api } from '../api/client'
+import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
+import { api, photoUrl } from '../api/client'
+import { PhotoPicker } from '../components/PhotoPicker'
+import { Loading } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { clockOf, manilaDate, manilaInstant, peso } from '../lib/format'
 import { href, navigate, paths } from '../lib/route'
 import { gap } from '../lib/style'
-import { useNow } from '../lib/useLoad'
+import { useLoad, useNow } from '../lib/useLoad'
 
 interface Draft {
   name: string
@@ -38,10 +40,28 @@ function problemsOf(d: Draft, today: string, now: number): Partial<Record<keyof 
   return p
 }
 
+/** Loads the store's defaults first, so the form opens already filled in where it can be. */
 export function NewListing() {
+  const store = useLoad(useCallback(() => api.myStore(), []))
+  if (store.loading && !store.data) return <Loading />
+  // If the profile can't be loaded, posting still works: the form just starts empty.
+  const s = store.data
+  const place = s ? [s.address, s.barangay].filter(Boolean).join(', ') : ''
+  return (
+    <ListingForm start={{
+      ...empty,
+      pickupLocation: place,
+      start: s?.defaultPickupStart?.slice(0, 5) ?? empty.start,
+      end: s?.defaultPickupEnd?.slice(0, 5) ?? empty.end,
+    }} />
+  )
+}
+
+function ListingForm({ start }: { start: Draft }) {
   const now = useNow()
   const today = manilaDate(now)
-  const [draft, setDraft] = useState<Draft>(empty)
+  const [draft, setDraft] = useState<Draft>(start)
+  const [photoId, setPhotoId] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,6 +92,7 @@ export function NewListing() {
         pickupEnd,
         // The listing comes off the app when pickup ends.
         expiresAt: pickupEnd,
+        photoId,
       })
       navigate(paths.owner)
     } catch (err) {
@@ -104,6 +125,7 @@ export function NewListing() {
           <h1 className="wide">Post a listing</h1>
           <p className="muted">For pickup today. It comes off the app when pickup ends.</p>
         </div>
+        <a className="btn" href={href(paths.postAgain)}>Post your usual listings</a>
       </div>
 
       <div className="cart-layout">
@@ -111,6 +133,8 @@ export function NewListing() {
           {field('name', 'Food', <input {...attrs('name')} maxLength={120} placeholder="Ensaymada, box of 6" />)}
           {field('description', 'Details (optional)', <textarea {...attrs('description')} maxLength={500} rows={3}
             placeholder="Baked this morning. Ube and cheese." style={{ resize: 'vertical', padding: '10px 14px', height: 'auto' }} />)}
+          <PhotoPicker id="listing-photo" label="Photo (optional)" photoId={photoId} onChange={setPhotoId}
+            hint="Listings with a photo of the actual food get reserved faster. Any phone photo works." />
           <div className="three" style={{ gap: 14 }}>
             {field('originalPrice', 'Usual price (₱)', <input {...attrs('originalPrice')} type="number" inputMode="decimal" min={0.01} step={0.01} />)}
             {field('price', 'Tonight’s price (₱)', <input {...attrs('price')} type="number" inputMode="decimal" min={0} step={0.01} />)}
@@ -131,8 +155,8 @@ export function NewListing() {
         <aside className="stack" style={gap(12)} aria-label="Preview">
           <strong>How buyers will see it</strong>
           <article className="card deal">
-            <div className="photo">
-              <span>Photo</span>
+            <div className="photo shot">
+              {photoId ? <img src={photoUrl(photoId, 'thumb')} alt="" /> : <span>No photo</span>}
               {off != null && off > 0 && <span className="tag lime tilt">{off}% off</span>}
             </div>
             <div className="deal-body">

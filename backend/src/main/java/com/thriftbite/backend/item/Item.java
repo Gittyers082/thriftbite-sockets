@@ -69,6 +69,10 @@ public class Item {
     @Column(nullable = false, length = 20)
     private ItemStatus status;
 
+    /** The listing's photo (see the photo package), or null. */
+    @Column(name = "photo_id")
+    private UUID photoId;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -129,6 +133,11 @@ public class Item {
         this.status = quantity > 0 ? ItemStatus.AVAILABLE : ItemStatus.SOLD_OUT;
     }
 
+    /** @param photoId one of the store's own photos, or null for none */
+    public void usePhoto(UUID photoId) {
+        this.photoId = photoId;
+    }
+
     /**
      * Soft delete: the row stays because past reservations still point at it,
      * but the item disappears from every listing.
@@ -158,6 +167,7 @@ public class Item {
     public Instant getPickupStart() { return pickupStart; }
     public Instant getPickupEnd() { return pickupEnd; }
     public ItemStatus getStatus() { return status; }
+    public UUID getPhotoId() { return photoId; }
     public long getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

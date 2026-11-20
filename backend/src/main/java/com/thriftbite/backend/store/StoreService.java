@@ -36,9 +36,35 @@ public class StoreService {
      */
     @Transactional(readOnly = true)
     public UUID storeIdFor(UUID userId) {
-        return members.findByIdUserId(userId)
+        UUID storeId = members.findByIdUserId(userId)
                 .map(member -> member.getStore().getId())
                 .orElseThrow(() -> new ForbiddenException("This account isn't linked to a store"));
+        // Staff keep their own logins, so check the store itself: with its owner suspended
+        // (or the store closed), nobody posts food or hands over pickups under its name.
+        if (!members.hasApprovedMember(storeId)) {
+            throw new ForbiddenException("This store isn't open on ThriftBite right now. Ask the store's owner.");
+        }
+        return storeId;
+    }
+
+    /**
+     * The same, for things only the store's owner may do: the profile, sales figures,
+     * staff, and closing the store.
+     */
+    @Transactional(readOnly = true)
+    public UUID ownedStoreIdFor(UUID userId) {
+        StoreMember member = members.findByIdUserId(userId)
+                .orElseThrow(() -> new ForbiddenException("This account isn't linked to a store"));
+        if (member.getRole() != StoreRole.OWNER) {
+            throw new ForbiddenException("Only the store's owner can do this");
+        }
+        return member.getStore().getId();
+    }
+
+    /** True for a staff account: it works at a store but doesn't own it. */
+    @Transactional(readOnly = true)
+    public boolean isStaff(UUID userId) {
+        return members.findByIdUserId(userId).map(member -> member.getRole() == StoreRole.STAFF).orElse(false);
     }
 
     /** "Lola Ising's Carinderia" becomes "lola-isings-carinderia", with a short suffix if that's taken. */

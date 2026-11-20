@@ -57,7 +57,7 @@ public class SalesStatsService {
             throw new BadRequestException("Pick at most " + MAX_DAYS + " days");
         }
 
-        UUID storeId = stores.storeIdFor(userId);
+        UUID storeId = stores.ownedStoreIdFor(userId);   // the money is the owner's business, not staff's
         String storeName = storeRepository.findById(storeId).orElseThrow().getName();
         SalesStatsQueries.Period period = period(storeId, start, end);
         SalesStatsQueries.Period before = period(storeId, start.minusDays(length), start.minusDays(1));

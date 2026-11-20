@@ -1,12 +1,20 @@
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react'
 import { ApiError, api } from '../api/client'
 import type { ItemRequest, ItemResponse, ItemStatus, ReservationResponse } from '../api/types'
+import { LiveBadge } from '../components/LiveBadge'
 import { Empty, Loading, ProblemPanel } from '../components/States'
 import { messageOf } from '../lib/errors'
 import { dayOf, peso, plural, timeOf, untilLabel, windowOf } from '../lib/format'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLiveReload } from '../lib/useLive'
 import { useLoad, useNow } from '../lib/useLoad'
+
+/** A buyer reserved or cancelled, a pickup time passed, or another device at the counter changed something. */
+const storeChanged = (message: LiveMessage) => message.type === 'store'
+/** A pickup card says "New" for this long after the buyer reserved. */
+const NEW_FOR_MS = 2 * 60_000
 
 const statusTag: Record<ItemStatus, [string, string]> = {
   AVAILABLE: ['On sale', 'lime'],
@@ -28,6 +36,7 @@ function requestFrom(item: ItemResponse, changes: Partial<ItemRequest> = {}): It
     pickupStart: item.pickupStart,
     pickupEnd: item.pickupEnd,
     version: item.version,
+    photoId: item.photoId,   // an update without it would take the photo off
     ...changes,
   }
 }
@@ -35,7 +44,8 @@ function requestFrom(item: ItemResponse, changes: Partial<ItemRequest> = {}): It
 /** The store's counter screen: who's coming to pick up, and what's still on sale. */
 export function OwnerToday() {
   const now = useNow()
-  const loaded = useLoad(useCallback(() => Promise.all([api.ownerPickups(), api.myItems()]), []))
+  const loaded = useLoad(useCallback(() => Promise.all([api.ownerPickups(), api.myItems(), api.myStore()]), []))
+  useLiveReload(loaded.reload, storeChanged)
   const [handedOver, setHandedOver] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
@@ -44,10 +54,9 @@ export function OwnerToday() {
   if (loaded.error && !loaded.data) return <ProblemPanel error={loaded.error} onRetry={loaded.reload} />
   if (!loaded.data) return <Loading label="Loading today’s pickups…" />
 
-  const [pickups, items] = loaded.data
+  const [pickups, items, store] = loaded.data
   const live = items.filter((i) => i.status === 'AVAILABLE' || i.status === 'SOLD_OUT')
   const ended = items.filter((i) => i.status === 'EXPIRED')
-  const storeName = items[0]?.storeName ?? pickups[0]?.storeName ?? 'Your store'
   const toCollect = pickups.reduce((sum, r) => sum + r.total, 0)
   const leftOnSale = live.reduce((sum, i) => sum + (i.status === 'AVAILABLE' ? i.quantity : 0), 0)
 
@@ -81,11 +90,21 @@ export function OwnerToday() {
     <div className="stack" style={gap(28)}>
       <div className="page-head">
         <div className="stack" style={gap(6)}>
-          <h1 className="wide">{storeName}</h1>
+          <h1 className="wide">{store.name}</h1>
           <p className="muted">Today, {dayOf(new Date(now).toISOString())}</p>
         </div>
-        <a className="btn teal" href={href(paths.newListing)}>Post a listing</a>
+        <div className="wrap-row">
+          <a className="btn" href={href(paths.postAgain)}>Post again</a>
+          <a className="btn teal" href={href(paths.newListing)}>Post a listing</a>
+        </div>
       </div>
+
+      {!store.address && (
+        <div className="panel notice">
+          <p className="grow"><strong>Buyers can’t see where you are yet.</strong> Add your address and opening hours to your store profile.</p>
+          <a className="btn sm" href={href(paths.storeProfile)}>Finish store profile</a>
+        </div>
+      )}
 
       <div className="kpis">
         <Kpi label="Waiting for pickup" value={String(pickups.length)} note={plural(pickups.reduce((n, r) => n + r.items.reduce((m, l) => m + l.quantity, 0), 0), 'item')} />
@@ -103,7 +122,10 @@ export function OwnerToday() {
       {problem && <p role="alert" className="err">{problem}</p>}
 
       <section className="stack" style={gap(14)}>
-        <h2 className="wide" style={{ fontSize: 24 }}>Pickups</h2>
+        <div className="row">
+          <h2 className="wide" style={{ fontSize: 24 }}>Pickups</h2>
+          <LiveBadge what="New reservations" />
+        </div>
         {pickups.length === 0 ? (
           <p className="panel cream" style={{ padding: '18px 20px' }}>
             No one is waiting right now. New reservations show up here, each with a code the buyer reads out at your counter.
@@ -191,6 +213,7 @@ function PickupCard({ reservation: r, now, onDone }: { reservation: ReservationR
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const late = new Date(r.pickupDeadline).getTime() - now < 15 * 60_000
+  const isNew = now - new Date(r.createdAt).getTime() < NEW_FOR_MS
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -216,7 +239,10 @@ function PickupCard({ reservation: r, now, onDone }: { reservation: ReservationR
           <h3 style={{ fontSize: 18, fontWeight: 800 }}>{r.buyerName}</h3>
           <p className="small">Reserved {timeOf(r.createdAt)}</p>
         </div>
-        <span className="tag">Due {timeOf(r.pickupDeadline)}</span>
+        <span className="row" style={gap(6)}>
+          {isNew && <span className="tag lime flash">New</span>}
+          <span className="tag">Due {timeOf(r.pickupDeadline)}</span>
+        </span>
       </div>
       <div className="stack" style={gap(8, { padding: '16px 20px' })}>
         {r.items.map((line) => (

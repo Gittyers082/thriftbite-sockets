@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +47,11 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 
     @EntityGraph(attributePaths = "store")
     List<Item> findByStoreIdAndStatusNotOrderByExpiresAtAsc(UUID storeId, ItemStatus excluded);
+
+    /** A store's public page: what's on sale first (AVAILABLE sorts before SOLD_OUT), soonest-expiring first. */
+    @EntityGraph(attributePaths = "store")
+    List<Item> findByStoreIdAndStatusInAndExpiresAtAfterOrderByStatusAscExpiresAtAsc(
+            UUID storeId, Collection<ItemStatus> statuses, Instant now);
 
     /**
      * Takes {@code quantity} units of stock in ONE statement: the check

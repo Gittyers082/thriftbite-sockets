@@ -1,12 +1,19 @@
 package com.thriftbite.backend.item;
 
+import com.thriftbite.backend.live.LiveChange.StoreChanged;
+import com.thriftbite.backend.live.LiveChange.ItemChanged;
+import org.springframework.context.ApplicationEventPublisher;
+import com.thriftbite.backend.alert.Alerts;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
 import com.thriftbite.backend.common.ApiExceptions.NotFoundException;
 import com.thriftbite.backend.common.PageResponse;
+import com.thriftbite.backend.item.dto.BatchListingRequest;
 import com.thriftbite.backend.item.dto.ItemRequest;
 import com.thriftbite.backend.item.dto.ItemResponse;
+import com.thriftbite.backend.item.dto.UsualListing;
+import com.thriftbite.backend.photo.Photos;
 import com.thriftbite.backend.store.StoreRepository;
 import com.thriftbite.backend.store.StoreService;
 import com.thriftbite.backend.user.UserRepository;
@@ -15,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -29,14 +37,23 @@ public class ItemService {
     private final StoreRepository storeRepository;
     private final StoreService stores;
     private final StockEvents events;
+    private final UsualListings usualListings;
+    private final Alerts alerts;
+    private final Photos photos;
+    private final ApplicationEventPublisher live;
 
     public ItemService(ItemRepository items, UserRepository users, StoreRepository storeRepository,
-                       StoreService stores, StockEvents events) {
+                       StoreService stores, StockEvents events, UsualListings usualListings, Alerts alerts,
+                       Photos photos, ApplicationEventPublisher live) {
+        this.alerts = alerts;
+        this.photos = photos;
         this.items = items;
         this.users = users;
         this.storeRepository = storeRepository;
         this.stores = stores;
         this.events = events;
+        this.usualListings = usualListings;
+        this.live = live;
     }
 
     // ---- public ----
@@ -71,14 +88,48 @@ public class ItemService {
         }
         checkBusinessRules(request);
         UUID storeId = stores.storeIdFor(userId);
-        Item item = items.saveAndFlush(new Item(
+        photos.checkBelongsTo(storeId, request.photoId());
+        Item draft = new Item(
                 storeRepository.getReferenceById(storeId), users.getReferenceById(userId),
                 request.name().trim(), request.description(),
                 request.price(), request.originalPrice(), request.quantity(),
                 request.expiresAt(), request.pickupLocation().trim(),
-                request.pickupStart(), request.pickupEnd()));
+                request.pickupStart(), request.pickupEnd());
+        draft.usePhoto(request.photoId());
+        Item item = items.saveAndFlush(draft);
         events.record(item.getId(), StockEventType.LISTED, item.getQuantity(), null, userId);
+        alerts.dealsPosted(storeId);   // the store's followers hear about it
+        tellOpenScreens(item.getId(), storeId);
         return ItemResponse.from(item);
+    }
+
+    /**
+     * Posts several listings with one pickup window, all or nothing: if one is
+     * refused, none of them go on sale.
+     */
+    @Transactional
+    public List<ItemResponse> createBatch(UUID userId, BatchListingRequest request) {
+        return request.items().stream()
+                .map(entry -> create(userId, new ItemRequest(
+                        entry.name(), entry.description(), entry.price(), entry.originalPrice(), entry.quantity(),
+                        request.pickupEnd(),   // the listing comes off sale when pickup ends
+                        entry.pickupLocation(), request.pickupStart(), request.pickupEnd(), null, entry.photoId())))
+                .toList();
+    }
+
+    /**
+     * What the store usually lists, for the "Post again" screen.
+     *
+     * @param postingFor the day the food will be picked up: today or tomorrow (Manila); null means today
+     */
+    @Transactional(readOnly = true)
+    public List<UsualListing> usual(UUID userId, LocalDate postingFor) {
+        LocalDate today = LocalDate.now(UsualListings.ZONE);
+        LocalDate day = postingFor == null ? today : postingFor;
+        if (day.isBefore(today) || day.isAfter(today.plusDays(1))) {
+            throw new BadRequestException("You can post for today or tomorrow");
+        }
+        return usualListings.forStore(stores.storeIdFor(userId), day);
     }
 
     @Transactional
@@ -92,6 +143,8 @@ public class ItemService {
             throw new ConflictException("This item changed since you loaded it. Reload and try again.");
         }
         checkBusinessRules(request);
+        photos.checkBelongsTo(item.getStore().getId(), request.photoId());
+        item.usePhoto(request.photoId());
         int before = item.getQuantity();
         item.update(request.name().trim(), request.description(),
                 request.price(), request.originalPrice(), request.quantity(),
@@ -101,6 +154,7 @@ public class ItemService {
         if (item.getQuantity() != before) {
             events.record(item.getId(), StockEventType.ADJUSTED, item.getQuantity() - before, null, userId);
         }
+        tellOpenScreens(item.getId(), item.getStore().getId());
         return ItemResponse.from(item);
     }
 
@@ -110,9 +164,35 @@ public class ItemService {
         item.remove();
         items.flush();
         events.record(item.getId(), StockEventType.REMOVED, 0, null, userId);
+        tellOpenScreens(item.getId(), item.getStore().getId());
+    }
+
+    /**
+     * An admin suspended the store: everything it has up comes down. Lifting the suspension
+     * doesn't put it back; the store posts again when it's ready.
+     *
+     * @return how many listings were taken down
+     */
+    @Transactional
+    public int removeAllFor(UUID storeId, UUID adminId) {
+        List<Item> listed = items.findByStoreIdAndStatusNotOrderByExpiresAtAsc(storeId, ItemStatus.REMOVED);
+        listed.forEach(Item::remove);
+        items.flush();
+        listed.forEach(item -> {
+            events.record(item.getId(), StockEventType.REMOVED, 0, null, adminId);
+            live.publishEvent(new ItemChanged(item.getId()));
+        });
+        live.publishEvent(new StoreChanged(storeId));
+        return listed.size();
     }
 
     // ---- helpers ----
+
+    /** Sent after this transaction commits: browse pages update the listing, and the store's other screens reload. */
+    private void tellOpenScreens(UUID itemId, UUID storeId) {
+        live.publishEvent(new ItemChanged(itemId));
+        live.publishEvent(new StoreChanged(storeId));
+    }
 
     private Item findVisible(UUID itemId) {
         return items.findWithStoreById(itemId)

@@ -23,6 +23,12 @@ spring:
   flyway:
     locations: classpath:db/migration
 
+  servlet:
+    multipart:
+      # Photo uploads. The app's own pages shrink a photo to well under 1 MB before sending it.
+      max-file-size: 6MB
+      max-request-size: 7MB
+
   mvc:
     problemdetails:
       enabled: true            # errors use the standard RFC 9457 "problem details" JSON
@@ -30,6 +36,10 @@ spring:
 server:
   port: ${PORT:8080}             # Render and similar hosts provide PORT
   shutdown: graceful             # finish in-flight requests when Render redeploys
+  tomcat:
+    # Read (and throw away) the rest of an upload that's over the limit, so the browser
+    # gets the "too big" answer instead of a dropped connection.
+    max-swallow-size: 12MB
 
 management:
   endpoints:
@@ -68,6 +78,10 @@ app:
     # Wrong claim codes before code entry for that reservation pauses, and for how long.
     max-code-attempts: 5
     code-lock: PT15M
+    # Missing this many pickups within the window pauses reserving for the block length.
+    missed-pickups-before-block: 2
+    missed-pickup-window: P30D
+    missed-pickup-block: P7D
   demo:
     # One-tap Buyer / Store owner / Admin accounts with sample Baguio data, for the
     # public demo. WARNING: a reset deletes every account except the bootstrap admin.
@@ -75,13 +89,29 @@ app:
     max-age: PT6H
   rate-limit:
     enabled: ${APP_RATE_LIMIT_ENABLED:true}
-    # Header the host's proxy puts the real client address in (set when deployed).
+    # Header the host's proxy puts the visitor's address in. Without it, every visitor
+    # behind the proxy shares one address and one limit. On Render: CF-Connecting-IP.
     client-ip-header: ${APP_CLIENT_IP_HEADER:}
     window: PT10M
     login-per-window: 30
     register-per-window: 5
     checkout-per-window: 20
     claim-code-per-window: 60
+    # Live (WebSocket) connections opened from one address.
+    live-connects-per-window: 300
+    # Every API call from one address, on top of the limits above (2 a second, sustained).
+    general-per-window: 1200
+    # Photo uploads (each one is shrunk on the server), and photo views.
+    photo-uploads-per-window: 30
+    photos-per-window: 6000
+    reports-per-window: 10
     # Wrong passwords in a row before one username is paused, and for how long.
     login-failures-before-lock: 5
     login-lock: PT15M
+  live:
+    # Open live connections at once: in total, and from one address (a classroom on one
+    # Wi-Fi shares an address, so this is roomy).
+    max-connections: 500
+    max-connections-per-address: 60
+    # Pings keep proxies from closing quiet connections.
+    ping-interval: PT25S

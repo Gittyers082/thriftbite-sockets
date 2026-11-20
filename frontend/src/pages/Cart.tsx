@@ -6,6 +6,8 @@ import { messageOf } from '../lib/errors'
 import { peso, plural, spacedCode, timeOf } from '../lib/format'
 import { href, paths } from '../lib/route'
 import { gap } from '../lib/style'
+import type { LiveMessage } from '../lib/live'
+import { useLive } from '../lib/useLive'
 import { useLoad } from '../lib/useLoad'
 
 export function Cart() {
@@ -16,6 +18,15 @@ export function Cart() {
   const [problem, setProblem] = useState<string | null>(null)
   const [reserved, setReserved] = useState<ReservationResponse[] | null>(null)
   const current = cart ?? loaded.data
+
+  // Live: if someone else reserves (or frees) food that's in this cart, show what's left now.
+  const inCart = current?.lines.map((line) => line.itemId).join(',') ?? ''
+  useLive(useCallback((message: LiveMessage) => {
+    const touchesCart = message.type === 'item' && inCart.split(',').includes(message.id)
+    if (touchesCart || message.type === 'deals' || message.type === 'reconnected') {
+      api.cart().then(setCart, () => { /* keep what's on screen; checkout checks again anyway */ })
+    }
+  }, [inCart]))
 
   const change = async (line: CartLine, quantity: number) => {
     setBusy(true)

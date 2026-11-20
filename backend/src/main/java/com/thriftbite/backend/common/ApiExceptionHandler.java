@@ -1,6 +1,8 @@
 package com.thriftbite.backend.common;
 
 import com.thriftbite.backend.common.ApiExceptions.AccountNotApprovedException;
+import com.thriftbite.backend.common.ApiExceptions.AccountSuspendedException;
+import com.thriftbite.backend.common.ApiExceptions.PickupBlockException;
 import com.thriftbite.backend.common.ApiExceptions.BadRequestException;
 import com.thriftbite.backend.common.ApiExceptions.ConflictException;
 import com.thriftbite.backend.common.ApiExceptions.ForbiddenException;
@@ -15,8 +17,11 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * Turns domain exceptions into consistent JSON error responses. Every error
@@ -24,7 +29,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * Validation errors (400) are handled by Spring's built-in problem-details support.
  */
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)   // ahead of Spring's own handler, for the errors both know about
 public class ApiExceptionHandler {
+
+    /** A file bigger than spring.servlet.multipart.max-file-size. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ProblemDetail uploadTooBig(MaxUploadSizeExceededException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, "That file is too big. Photos can be up to 6 MB.");
+    }
 
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail notFound(NotFoundException e) {
@@ -53,6 +65,21 @@ public class ApiExceptionHandler {
     ProblemDetail notApproved(AccountNotApprovedException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
         problem.setProperty("code", "account_not_approved");
+        return problem;
+    }
+
+    @ExceptionHandler(PickupBlockException.class)
+    ProblemDetail pickupBlock(PickupBlockException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problem.setProperty("code", "pickup_block");
+        problem.setProperty("until", e.until().toString());
+        return problem;
+    }
+
+    @ExceptionHandler(AccountSuspendedException.class)
+    ProblemDetail suspended(AccountSuspendedException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problem.setProperty("code", "account_suspended");
         return problem;
     }
 

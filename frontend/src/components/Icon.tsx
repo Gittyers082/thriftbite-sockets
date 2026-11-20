@@ -7,6 +7,7 @@ const paths = {
   sales: <><path d="M4 20h16" /><rect x="5" y="12" width="3" height="8" /><rect x="10.5" y="6" width="3" height="14" /><rect x="16" y="9" width="3" height="11" /></>,
   plus: <><rect x="4" y="4" width="16" height="16" /><path d="M12 8v8M8 12h8" /></>,
   store: <><path d="M4 9l2-5h12l2 5" /><path d="M4 9h16v2a3 3 0 0 1-5 1 3 3 0 0 1-6 0 3 3 0 0 1-5-1z" /><path d="M5 13v7h14v-7M10 20v-4h4v4" /></>,
+  bell: <><path d="M6 17V11a6 6 0 0 1 12 0v6" /><path d="M4 17h16" /><path d="M10 20.5h4" /></>,
   back: <path d="M15 18l-6-6 6-6" />,
 }
 

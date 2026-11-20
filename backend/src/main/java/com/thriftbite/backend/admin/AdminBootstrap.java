@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Creates the first admin account from APP_ADMIN_USERNAME and APP_ADMIN_PASSWORD
@@ -48,7 +49,14 @@ public class AdminBootstrap implements ApplicationRunner {
         if (password.length() < 12) {
             throw new IllegalStateException("APP_ADMIN_PASSWORD must be at least 12 characters long");
         }
-        if (users.existsByUsername(username)) {
+        Optional<User> existing = users.findByUsername(username);
+        if (existing.isPresent()) {
+            if (existing.get().getRole() != Role.ADMIN) {
+                // Someone signed up with this name before the admin was set up. Starting anyway
+                // would leave the app with no admin and nothing in the logs to say why.
+                throw new IllegalStateException("APP_ADMIN_USERNAME '" + username
+                        + "' already belongs to an account that isn't an admin. Choose a different admin username.");
+            }
             return;   // already created on an earlier start
         }
         users.save(new User(username, passwordEncoder.encode(password), Role.ADMIN));

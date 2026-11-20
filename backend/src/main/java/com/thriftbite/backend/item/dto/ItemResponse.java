@@ -8,6 +8,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
 
+/** @param photoId fetch it from /api/photos/{photoId} (add ?size=thumb for lists); null if the listing has none */
 public record ItemResponse(
         UUID id,
         String name,
@@ -24,6 +25,7 @@ public record ItemResponse(
         UUID storeId,
         String storeName,
         String storeSlug,
+        UUID photoId,
         long version
 ) {
 
@@ -44,6 +46,7 @@ public record ItemResponse(
                 item.getStore().getId(),
                 item.getStore().getName(),
                 item.getStore().getSlug(),
+                item.getPhotoId(),
                 item.getVersion());
     }
 
