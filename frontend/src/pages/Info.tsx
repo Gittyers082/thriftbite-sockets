@@ -59,7 +59,7 @@ const privacy: [string, string][] = [
   ['Who can see it', 'A store sees your username and what you reserved, only for reservations with that store. A store’s owner can create staff accounts for the people who work there, give them a new password, and remove them. Admins can see accounts, reservations and problem reports, and can suspend an account that breaks the rules; if that happens you’re told why when you log in. A store isn’t told who reported it. We don’t sell or share your data with advertisers.'],
   ['How long we keep it', 'Your account and reservations stay until you delete your account. When you do, anything you’re holding goes back on sale, your username and recovery codes are removed, what you wrote in problem reports is erased, and your past reservations stay in stores’ records without your name. The public demo resets every few hours and deletes everything in it.'],
   ['Your rights', 'Under the Data Privacy Act of 2012 (Republic Act No. 10173), you can ask what we hold about you, correct it, download it, object to how it’s used, or have it deleted. Buyers can download their data and delete their account from the account page; stores can download theirs there and ask an admin to close the account. You can also complain to the National Privacy Commission.'],
-  ['Contact', 'Questions about your data go to [PRIVACY CONTACT EMAIL]. ThriftBite is a student project built in Baguio City.'],
+  ['Contact', 'Questions about your data go to thryx@thriftbite.com. ThriftBite is a student project built in Baguio City.'],
 ]
 
 export function Privacy() {
